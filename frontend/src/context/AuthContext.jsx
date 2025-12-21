@@ -1,25 +1,35 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const AuthContext = createContext(null);
+export const API_BASE = import.meta.env.CLIENT_ORIGIN || "http://localhost:3000";
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("hva_user")) || null; } catch { return null; }
+  const [session, setSession] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("hva_session")) || null; } catch { return null; }
   });
 
   useEffect(() => {
-    if (user) localStorage.setItem("hva_user", JSON.stringify(user));
-    else localStorage.removeItem("hva_user");
-  }, [user]);
+    if (session) localStorage.setItem("hva_session", JSON.stringify(session));
+    else localStorage.removeItem("hva_session");
+  }, [session]);
 
-  const login = (payload) => setUser(payload);              // {role:"admin"|"patient"|"doctor", email, name}
-  const logout = () => setUser(null);
+  function login({ token, user }) {
+    setSession({ token, user });
+  }
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  function logout() {
+    setSession(null);
+  }
+
+  const value = useMemo(() => ({
+    user: session?.user || null,
+    token: session?.token || null,
+    login,
+    logout,
+    authHeader: session?.token ? { Authorization: `Bearer ${session.token}` } : {},
+  }), [session]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -1,24 +1,44 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
+import { API_BASE, useAuth } from "../context/AuthContext";
 
 export default function Login() {
+  const nav = useNavigate();
+  const { login } = useAuth();
+
   const [showPass, setShowPass] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
-  function validate() {
-    const e = {};
-    if (!form.email) e.email = "Email is required";
-    if (!form.password) e.password = "Password is required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  function onSubmit(ev) {
+  async function onSubmit(ev) {
     ev.preventDefault();
-    if (!validate()) return;
-    alert(`Login (UI-only)\nEmail: ${form.email}`);
+    setErr("");
+    if (!form.email || !form.password) {
+      setErr("Email and password are required");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Login failed");
+
+      login({ token: data.token, user: data.user });
+
+      // Redirect by role (patient/doctor)
+      if (data.user.role === "doctor") nav("/doctor", { replace: true });
+      else nav("/patient", { replace: true });
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -31,11 +51,8 @@ export default function Login() {
             placeholder="Email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-              ${errors.email ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                              : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
-          {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
         </div>
 
         {/* Password with Show */}
@@ -46,9 +63,7 @@ export default function Login() {
               placeholder="Password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className={`w-full rounded-md border px-3 py-2 pr-12 text-sm outline-none shadow-sm
-                ${errors.password ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                                   : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+              className="w-full rounded-md border border-slate-200 px-3 py-2 pr-12 text-sm shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             <button
               type="button"
@@ -58,15 +73,17 @@ export default function Login() {
               {showPass ? "Hide" : "Show"}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
         </div>
+
+        {err && <p className="text-sm text-rose-600">{err}</p>}
 
         {/* Submit */}
         <button
           type="submit"
-          className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          disabled={loading}
+          className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
 
         <p className="text-center text-sm text-slate-600">
