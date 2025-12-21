@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 
 const allowedOrigins = ["http://localhost:5173"];
@@ -16,6 +17,8 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+
 
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));
