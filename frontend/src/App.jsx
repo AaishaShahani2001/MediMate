@@ -36,8 +36,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* patient/doctor demos (not protected here, but you can) */}
-          <Route path="/patient" element={<PatientDashboard />} />
+          <Route element={<ProtectedRoute requireRole="patient" />}>
+            <Route path="/patient" element={<PatientDashboard />} />
+          </Route>
+          
           <Route path="/doctor" element={<DoctorDashboard />} />
 
           {/* admin auth + protected dashboard */}
