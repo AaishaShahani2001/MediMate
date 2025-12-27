@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import DoctorCard from "../components/DoctorCard";
 import CategoryPills from "../components/CategoryPills";
 import { CATEGORIES, DOCTORS } from "../data/doctors";
+import BecomeDoctorModal from "../components/BecomeDoctorModal";
+
 
 export default function Doctors() {
   const [q, setQ] = useState("");
