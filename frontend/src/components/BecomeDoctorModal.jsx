@@ -5,7 +5,11 @@ export default function BecomeDoctorModal({ onClose }) {
   const { token } = useAuth();
 
   const [submitting, setSubmitting] = useState(false);
-  const [docs, setDocs] = useState([]);
+
+  // files
+  const [nicFile, setNicFile] = useState(null);
+  const [certFiles, setCertFiles] = useState([]);
+
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -16,28 +20,28 @@ export default function BecomeDoctorModal({ onClose }) {
     consultationFee: "",
     about: "",
   });
+
   const [errors, setErrors] = useState({});
   const [msg, setMsg] = useState("");
 
+  /* ---------------- VALIDATION ---------------- */
   function validate() {
     const e = {};
     if (!form.fullName) e.fullName = "Full name is required";
     if (!form.email) e.email = "Email is required";
     if (!form.phone) e.phone = "Contact number is required";
-    if (!form.specialization) e.specialization = "Choose a specialization";
+    if (!form.specialization) e.specialization = "Choose specialization";
     if (!form.degree) e.degree = "Degree is required";
     if (!form.experience) e.experience = "Experience is required";
     if (!form.consultationFee) e.consultationFee = "Fee is required";
-    if (docs.length === 0) e.docs = "NIC / documents required";
+    if (!nicFile) e.nic = "NIC is required";
+    if (certFiles.length === 0) e.cert = "At least one certificate is required";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
-  function onPickFiles(e) {
-    const files = Array.from(e.target.files || []);
-    setDocs(files.slice(0, 3)); // NIC + docs
-  }
-
+  /* ---------------- SUBMIT ---------------- */
   async function onSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
@@ -47,8 +51,10 @@ export default function BecomeDoctorModal({ onClose }) {
 
     try {
       const fd = new FormData();
+
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      docs.forEach((f) => fd.append("documents", f));
+      fd.append("nic", nicFile);
+      certFiles.forEach((f) => fd.append("certifications", f));
 
       const res = await fetch(`${API_BASE}/api/doctor-applications`, {
         method: "POST",
@@ -59,10 +65,10 @@ export default function BecomeDoctorModal({ onClose }) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed");
+      if (!res.ok) throw new Error(data.message || "Submission failed");
 
-      setMsg("Application submitted. Await admin approval.");
-      setTimeout(onClose, 1200);
+      setMsg("✅ Application submitted. Await admin approval.");
+      setTimeout(onClose, 1400);
     } catch (err) {
       setMsg(err.message);
     } finally {
@@ -72,48 +78,95 @@ export default function BecomeDoctorModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h3 className="text-lg font-semibold">Become a Doctor</h3>
-          <button onClick={onClose}>✕</button>
+      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-6 py-4 bg-blue-50">
+          <h3 className="text-lg font-semibold text-slate-900">
+            👨‍⚕️ Become a Doctor
+          </h3>
+          <button onClick={onClose} className="text-slate-600 hover:text-black">
+            ✕
+          </button>
         </div>
 
-        <form onSubmit={onSubmit} className="grid gap-4 p-5 md:grid-cols-2">
-          <Input label="Full Name" value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} error={errors.fullName} />
-          <Input label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} error={errors.email} />
-          <Input label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} />
+        {/* Form */}
+        <form onSubmit={onSubmit} className="grid gap-5 p-6 md:grid-cols-2">
+          {/* Basic info */}
+          <Section title="Basic Information">
+            <Input label="Full Name" value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} error={errors.fullName} />
+            <Input label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} error={errors.email} />
+            <Input label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} />
+          </Section>
 
-          <Select
-            label="Specialization"
-            value={form.specialization}
-            onChange={(v) => setForm({ ...form, specialization: v })}
-            options={["General Physician", "Cardiology", "Dermatology", "Dental", "Neurology"]}
-            error={errors.specialization}
-          />
+          {/* Professional info */}
+          <Section title="Professional Details">
+            <Select
+              label="Specialization"
+              value={form.specialization}
+              onChange={(v) => setForm({ ...form, specialization: v })}
+              options={[
+                "General Physician",
+                "Cardiology",
+                "Dermatology",
+                "Pediatrics",
+                "Dental",
+                "Neurology",
+              ]}
+              error={errors.specialization}
+            />
+            <Input label="Degree" value={form.degree} onChange={(v) => setForm({ ...form, degree: v })} error={errors.degree} />
+            <Input label="Experience (years)" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} error={errors.experience} />
+            <Input label="Consultation Fee" value={form.consultationFee} onChange={(v) => setForm({ ...form, consultationFee: v })} error={errors.consultationFee} />
+          </Section>
 
-          <Input label="Degree" value={form.degree} onChange={(v) => setForm({ ...form, degree: v })} error={errors.degree} />
-          <Input label="Experience (years)" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} error={errors.experience} />
-          <Input label="Consultation Fee" value={form.consultationFee} onChange={(v) => setForm({ ...form, consultationFee: v })} error={errors.consultationFee} />
-
-          <TextArea
-            className="md:col-span-2"
-            label="About"
-            value={form.about}
-            onChange={(v) => setForm({ ...form, about: v })}
-          />
-
+          {/* About */}
           <div className="md:col-span-2">
-            <label className="text-sm font-medium">NIC / Certificates</label>
-            <input type="file" multiple accept=".pdf,image/*" onChange={onPickFiles} />
-            {errors.docs && <p className="text-xs text-red-600">{errors.docs}</p>}
+            <TextArea
+              label="About You"
+              value={form.about}
+              onChange={(v) => setForm({ ...form, about: v })}
+              placeholder="Brief description about your experience"
+            />
           </div>
 
-          {msg && <p className="md:col-span-2 text-sm text-blue-600">{msg}</p>}
+          {/* NIC upload */}
+          <UploadBox
+            label="NIC Upload (Required)"
+            accept=".pdf,image/*"
+            onChange={(f) => setNicFile(f)}
+            error={errors.nic}
+          />
 
-          <div className="md:col-span-2 flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="border px-4 py-2 rounded-md">Cancel</button>
-            <button disabled={submitting} className="bg-blue-600 text-white px-5 py-2 rounded-md">
-              {submitting ? "Submitting…" : "Submit"}
+          {/* Certification upload */}
+          <UploadBox
+            label="Certifications / License (PDF or Images)"
+            accept=".pdf,image/*"
+            multiple
+            onChange={(files) => setCertFiles(files)}
+            error={errors.cert}
+          />
+
+          {/* Message */}
+          {msg && (
+            <p className="md:col-span-2 text-center text-sm text-blue-700">
+              {msg}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="md:col-span-2 flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={submitting}
+              className="rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+            >
+              {submitting ? "Submitting…" : "Submit Application"}
             </button>
           </div>
         </form>
@@ -122,12 +175,26 @@ export default function BecomeDoctorModal({ onClose }) {
   );
 }
 
-/* helpers */
+/* ---------------- UI HELPERS ---------------- */
+
+function Section({ title, children }) {
+  return (
+    <div className="md:col-span-1 space-y-3">
+      <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
 function Input({ label, value, onChange, error }) {
   return (
     <div>
-      <label className="text-sm font-medium">{label}</label>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+      <label className="text-xs font-medium text-slate-600">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+      />
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
@@ -136,21 +203,53 @@ function Input({ label, value, onChange, error }) {
 function Select({ label, value, onChange, options, error }) {
   return (
     <div>
-      <label className="text-sm font-medium">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded-md px-3 py-2">
+      <label className="text-xs font-medium text-slate-600">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+      >
         <option value="">Select</option>
-        {options.map((o) => <option key={o}>{o}</option>)}
+        {options.map((o) => (
+          <option key={o}>{o}</option>
+        ))}
       </select>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }
 
-function TextArea({ label, value, onChange, className }) {
+function TextArea({ label, value, onChange, placeholder }) {
   return (
-    <div className={className}>
-      <label className="text-sm font-medium">{label}</label>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+    <div>
+      <label className="text-xs font-medium text-slate-600">{label}</label>
+      <textarea
+        rows={3}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+      />
+    </div>
+  );
+}
+
+function UploadBox({ label, accept, multiple, onChange, error }) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-slate-600">{label}</label>
+      <input
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        onChange={(e) =>
+          multiple
+            ? onChange(Array.from(e.target.files || []))
+            : onChange(e.target.files?.[0])
+        }
+        className="mt-1 block w-full text-sm"
+      />
+      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }
