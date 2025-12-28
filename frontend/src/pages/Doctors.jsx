@@ -10,9 +10,8 @@ export default function Doctors() {
   const [openApply, setOpenApply] = useState(false);
 
   const filtered = useMemo(() => {
-    const byCat = cat === "All"
-      ? DOCTORS
-      : DOCTORS.filter((d) => d.category === cat);
+    const byCat =
+      cat === "All" ? DOCTORS : DOCTORS.filter((d) => d.category === cat);
 
     const byQ = q.trim()
       ? byCat.filter(
@@ -27,36 +26,42 @@ export default function Doctors() {
 
   return (
     <main className="min-h-screen bg-white">
-      {/* Top */}
+      {/* ================= TOP SECTION ================= */}
       <section className="border-b bg-linear-to-br from-blue-50 via-white to-indigo-50">
-        <div className="mx-auto max-w-7xl px-4 py-10">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+          {/* Header row */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900">
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">
                 Find your doctor
               </h1>
-              <p className="text-slate-600">
+              <p className="mt-1 text-sm sm:text-base text-slate-600">
                 Filter by specialty or search by name.
               </p>
             </div>
 
+            {/* Button */}
             <button
               onClick={() => setOpenApply(true)}
-              className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700"
+              className="w-full sm:w-auto rounded-md bg-blue-600 px-5 py-2.5
+                text-sm font-semibold text-white shadow hover:bg-blue-700"
             >
               Become a Doctor
             </button>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex-1">
+          {/* Search + Categories */}
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Search */}
+            <div className="w-full sm:max-w-md">
               <div className="relative">
                 <input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search by doctor or category…"
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 pl-10 text-sm shadow-sm
-                    focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 md:max-w-md"
+                  className="w-full rounded-md border border-slate-200 bg-white
+                    px-3 py-2 pl-10 text-sm shadow-sm
+                    focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
                 <svg
                   className="absolute left-3 top-2.5 h-5 w-5 text-slate-400"
@@ -74,23 +79,31 @@ export default function Doctors() {
               </div>
             </div>
 
-            <CategoryPills
-              categories={CATEGORIES}
-              active={cat}
-              onChange={setCat}
-            />
+            {/* Categories */}
+            <div className="overflow-x-auto sm:overflow-visible">
+              <CategoryPills
+                categories={CATEGORIES}
+                active={cat}
+                onChange={setCat}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Grid */}
-      <section className="mx-auto max-w-7xl px-4 py-10">
+      {/* ================= DOCTOR GRID ================= */}
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
         {filtered.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-600">
+          <div className="rounded-xl border border-dashed border-slate-300
+            p-8 text-center text-sm sm:text-base text-slate-600">
             No doctors found for your search.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className="grid grid-cols-1 gap-4
+              sm:grid-cols-2
+              lg:grid-cols-3"
+          >
             {filtered.map((d) => (
               <DoctorCard key={d.id} doc={d} />
             ))}
@@ -98,7 +111,7 @@ export default function Doctors() {
         )}
       </section>
 
-      {/* Apply Modal */}
+      {/* ================= APPLY MODAL ================= */}
       {openApply && (
         <BecomeDoctorModal onClose={() => setOpenApply(false)} />
       )}
