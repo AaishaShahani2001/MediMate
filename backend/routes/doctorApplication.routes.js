@@ -1,7 +1,9 @@
 import express from "express";
 import multer from "multer";
 import DoctorApplication from "../models/DoctorApplication.js";
+import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
+import { adminOnly } from "../middleware/adminOnly.js";
 
 const router = express.Router();
 
@@ -22,14 +24,14 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-/* ---------------- ROUTE ---------------- */
+/* ================= USER: APPLY AS DOCTOR ================= */
 
 router.post(
   "/",
   auth,
   upload.fields([
-    { name: "nic", maxCount: 1 },              //  NIC
-    { name: "certifications", maxCount: 5 },   //  Licenses / Certificates
+    { name: "nic", maxCount: 1 },
+    { name: "certifications", maxCount: 5 },
   ]),
   async (req, res) => {
     try {
@@ -70,5 +72,42 @@ router.post(
     }
   }
 );
+
+/* ================= ADMIN: GET ALL REQUESTS ================= */
+
+router.get("/", auth, adminOnly, async (req, res) => {
+  try {
+    const applications = await DoctorApplication.find()
+      .populate("userId", "email role")
+      .sort({ createdAt: -1 });
+
+    res.json(applications);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch requests" });
+  }
+});
+
+/* ================= ADMIN: APPROVE / REJECT ================= */
+
+router.patch("/:id", auth, adminOnly, async (req, res) => {
+  const { status } = req.body;
+
+  if (!["Approved", "Rejected"].includes(status)) {
+    return res.status(400).json({ message: "Invalid status" });
+  }
+
+  const app = await DoctorApplication.findById(req.params.id);
+  if (!app) return res.status(404).json({ message: "Not found" });
+
+  app.status = status;
+  await app.save();
+
+  // ROLE UPGRADE
+  if (status === "Approved") {
+    await User.findByIdAndUpdate(app.userId, { role: "doctor" });
+  }
+
+  res.json(app);
+});
 
 export default router;
