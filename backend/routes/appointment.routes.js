@@ -15,6 +15,7 @@ router.post("/", auth, async (req, res) => {
 
     const { doctorId, date, time, notes } = req.body;
 
+    // Check doctor exists & approved
     const doctor = await DoctorApplication.findOne({
       _id: doctorId,
       status: "Approved",
@@ -24,24 +25,40 @@ router.post("/", auth, async (req, res) => {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    // prevent duplicate slot booking
-    const existing = await Appointment.findOne({
+    ///  AUTO-BLOCK LOGIC
+    // appointment.routes.js
+
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const alreadyBooked = await Appointment.findOne({
       doctorApplicationId: doctorId,
-      date,
-      time,
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+      time: time, // string compare is SAFE
       status: { $ne: "Cancelled" },
     });
 
-    if (existing) {
-      return res.status(400).json({ message: "Time slot already booked" });
+
+    if (alreadyBooked) {
+      return res.status(400).json({
+        message: "This time slot is already booked",
+      });
     }
 
+    // Create appointment
     const appointment = await Appointment.create({
       patientId: req.user.id,
       doctorApplicationId: doctorId,
       date,
       time,
       notes,
+
     });
 
     res.status(201).json(appointment);
