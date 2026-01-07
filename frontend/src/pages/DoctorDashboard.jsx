@@ -28,49 +28,63 @@ export default function DoctorDashboard() {
 
   /* ================= LOAD DOCTOR PROFILE ================= */
   useEffect(() => {
-  async function loadDoctor() {
-    try {
-      const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    async function loadDoctorProfile() {
+      setDocLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Failed to load doctor profile");
 
-      if (res.status === 401) return;
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
-      setDoc(data);
-    } catch (err) {
-      console.error("Doctor load failed");
+        // data is a DoctorApplication
+        setDoc(data);
+        setDocForm({
+          fullName: data.fullName || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          specialization: data.specialization || "",
+          degree: data.degree || "",
+          experience: data.experience || "",
+          consultationFee: data.consultationFee || "",
+          about: data.about || "",
+          gender: data.gender || "", // optional if you add later
+          avatar: data.avatar || "", // optional if you add later
+        });
+      } catch (e) {
+        showToast(e.message || "Session expired. Please login again.", "error");
+        logout();
+        navigate("/login");
+      } finally {
+        setDocLoading(false);
+      }
     }
-  }
 
-  loadDoctor();
-}, [token]);
+    loadDoctorProfile();
+  }, [token, logout, navigate]);
 
   /* ================= LOAD APPOINTMENTS WHEN TAB OPENED ================= */
   useEffect(() => {
-  if (tab !== "appointments") return;
+    if (tab !== "appointments") return;
 
-  async function loadAppointments() {
-    try {
-      const res = await fetch(`${API_BASE}/api/appointments/doctor/my`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setAppointments(data);
-    } catch (err) {
-      console.error("Failed to load appointments");
+    async function loadAppointments() {
+      setApptLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/appointments/doctor/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Failed to load appointments");
+        setAppointments(data);
+      } catch (e) {
+        showToast(e.message || "Failed to load appointments", "error");
+      } finally {
+        setApptLoading(false);
+      }
     }
-  }
 
-  loadAppointments();
-}, [tab, token]);
+    loadAppointments();
+  }, [tab, token]);
 
   /* ================= LOGOUT ================= */
   function handleLogout() {
@@ -78,11 +92,40 @@ export default function DoctorDashboard() {
     navigate("/login");
   }
 
-  /* ================= SAVE DOCTOR PROFILE (OPTIONAL) =================*/
-  async function saveProfile() {
+  /* ================= SAVE PROFILE  ================= */
+async function saveProfile() {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/doctor-applications/me`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: docForm.fullName,
+          phone: docForm.phone,
+          specialization: docForm.specialization,
+          degree: docForm.degree,
+          experience: docForm.experience,
+          consultationFee: docForm.consultationFee,
+          about: docForm.about,
+        }),
+      }
+    );
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || "Failed to update profile");
+
+    setDoc(data.doctor ?? data); // supports both response styles
     setEdit(false);
-    showToast("Profile updated (UI-only)", "success");
+    showToast("Profile updated successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Failed to update profile", "error");
   }
+}
+
 
   /* ================= UPDATE APPOINTMENT STATUS ================= */
   async function setStatus(apptId, nextStatus) {
@@ -228,7 +271,6 @@ export default function DoctorDashboard() {
                                 degree: doc.degree || "",
                                 experience: doc.experience || "",
                                 consultationFee: doc.consultationFee || "",
-                                location: doc.location || "",
                                 about: doc.about || "",
                                 gender: doc.gender || "",
                                 avatar: doc.avatar || "",
