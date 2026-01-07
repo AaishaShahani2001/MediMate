@@ -147,7 +147,7 @@ export default function DoctorDetails() {
 
           <div className="mt-5 flex flex-col gap-6 md:flex-row md:items-center">
             <div className="grid h-24 w-24 place-items-center rounded-2xl bg-linear-to-tr from-blue-200 to-indigo-200 text-3xl font-bold text-slate-800">
-              {initials}
+              Dr.{initials}
             </div>
 
             <div>

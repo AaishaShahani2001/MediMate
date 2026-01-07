@@ -65,6 +65,7 @@ router.get("/my", auth, async (req, res) => {
   }
 });
 
+
 /* ================= DOCTOR: MY APPOINTMENTS ================= */
 router.get("/doctor", auth, async (req, res) => {
   try {
@@ -117,5 +118,68 @@ router.patch("/:id/cancel", auth, async (req, res) => {
     res.status(500).json({ message: "Failed to cancel appointment" });
   }
 });
+
+// Edit appointment (Patient)
+router.patch("/:id/edit", auth, async (req, res) => {
+  const { date, time } = req.body;
+
+  try {
+    const appt = await Appointment.findById(req.params.id);
+
+    if (!appt) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    if (appt.patientId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    if (appt.status !== "Pending") {
+      return res
+        .status(400)
+        .json({ message: "Only pending appointments can be edited" });
+    }
+
+    appt.date = date;
+    appt.time = time;
+    await appt.save();
+
+    res.json({ message: "Appointment updated", appointment: appt });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update appointment" });
+  }
+});
+
+
+// Cancel appointment (Patient)
+router.patch("/:id/cancel", auth, async (req, res) => {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+
+    if (!appt) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Only owner can cancel
+    if (appt.patientId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    // Only pending appointments
+    if (appt.status !== "Pending") {
+      return res
+        .status(400)
+        .json({ message: "Only pending appointments can be cancelled" });
+    }
+
+    appt.status = "Cancelled";
+    await appt.save();
+
+    res.json({ message: "Appointment cancelled", appointment: appt });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to cancel appointment" });
+  }
+});
+
 
 export default router;
