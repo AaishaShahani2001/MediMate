@@ -146,19 +146,24 @@ router.get("/public/:id", async (req, res) => {
 router.get("/me", auth, async (req, res) => {
   try {
     const doctor = await DoctorApplication.findOne({
-      userId: req.userId,
-      status: "Approved",
+      userId: req.user.id,
     });
 
     if (!doctor) {
       return res.status(404).json({
-        message: "Doctor profile not found or not approved",
+        message: "Doctor application not found"
+      });
+    }
+
+    if (doctor.status !== "Approved") {
+      return res.status(403).json({
+        message: "Doctor application not approved yet",
+        status: doctor.status
       });
     }
 
     res.json(doctor);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
