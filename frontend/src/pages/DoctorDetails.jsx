@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { API_BASE } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
+
 
 /* ---------- helpers ---------- */
 function makeNext7Days() {
@@ -11,7 +13,7 @@ function makeNext7Days() {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push({
-      key: d.toDateString(),
+      key: d.toISOString(), // IMPORTANT for backend Date
       label: d.toLocaleDateString(undefined, opts),
     });
   }
@@ -39,6 +41,10 @@ export default function DoctorDetails() {
   const { id } = useParams();
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const { token, user } = useAuth();
 
   const days = useMemo(makeNext7Days, []);
   const slots = useMemo(makeSlots, []);
@@ -56,16 +62,58 @@ export default function DoctorDetails() {
         if (!res.ok) throw new Error("Doctor not found");
         const data = await res.json();
         setDoctor(data);
-      } catch (err) {
+      } catch {
         setDoctor(null);
       } finally {
         setLoading(false);
       }
     }
-
     fetchDoctor();
   }, [id]);
 
+  /* ================= BOOK APPOINTMENT ================= */
+  async function bookAppointment() {
+  if (!token) {
+    setMsg("Please login to book an appointment.");
+    return;
+  }
+
+  if (!selectedDay || !selectedSlot) {
+    setMsg("Please select date and time.");
+    return;
+  }
+
+  setBooking(true);
+  setMsg("");
+
+  try {
+    const res = await fetch(`${API_BASE}/api/appointments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        doctorId: doctor._id,
+        date: selectedDay,
+        time: selectedSlot,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+
+    setMsg("✅ Appointment booked successfully!");
+    setSelectedSlot("");
+  } catch (err) {
+    setMsg(err.message || "Booking failed");
+  } finally {
+    setBooking(false);
+  }
+}
+
+
+  /* ================= STATES ================= */
   if (loading) {
     return <p className="p-10 text-slate-600">Loading doctor profile…</p>;
   }
@@ -142,7 +190,7 @@ export default function DoctorDetails() {
             </div>
           </div>
 
-          {/* BOOKING (UI ONLY) */}
+          {/* BOOKING */}
           <aside>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-base font-semibold text-slate-900">
@@ -193,16 +241,20 @@ export default function DoctorDetails() {
                 </div>
               </div>
 
+              {/* Action */}
               <button
-                disabled={!selectedDay || !selectedSlot}
+                onClick={bookAppointment}
+                disabled={!selectedDay || !selectedSlot || booking}
                 className="mt-6 w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
               >
-                Book Appointment
+                {booking ? "Booking…" : "Book Appointment"}
               </button>
 
-              <p className="mt-2 text-center text-xs text-slate-500">
-                * Booking flow will be connected in next phase
-              </p>
+              {msg && (
+                <p className="mt-3 text-center text-sm text-blue-700">
+                  {msg}
+                </p>
+              )}
             </div>
           </aside>
         </div>
