@@ -13,10 +13,17 @@ const doctorApplicationSchema = new mongoose.Schema(
     consultationFee: String,
     about: String,
 
-    documents: [
+    //  NIC (single)
+    nic: {
+      fileName: String,
+      filePath: String,
+    },
+
+    // Licenses / Certificates (multiple)
+    certifications: [
       {
-        url: String,
-        name: String,
+        fileName: String,
+        filePath: String,
       },
     ],
 
