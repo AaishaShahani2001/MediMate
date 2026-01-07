@@ -5,6 +5,8 @@ import { useAuth, API_BASE } from "../context/AuthContext";
 export default function DoctorDashboard() {
   const [tab, setTab] = useState("profile"); // profile | appointments | password
   const [edit, setEdit] = useState(false);
+  const [filter, setFilter] = useState("today"); // today | upcoming
+
 
   const { token, logout } = useAuth();
   const navigate = useNavigate();
@@ -25,6 +27,28 @@ export default function DoctorDashboard() {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   }
+
+  // Filter appointments based on the selected filter
+  const filteredAppointments = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return appointments.filter((a) => {
+      const apptDate = new Date(a.date);
+      apptDate.setHours(0, 0, 0, 0);
+
+      if (filter === "today") {
+        return apptDate.getTime() === today.getTime();
+      }
+
+      if (filter === "upcoming") {
+        return apptDate > today;
+      }
+
+      return true;
+    });
+  }, [appointments, filter]);
+
 
   /* ================= LOAD DOCTOR PROFILE ================= */
   useEffect(() => {
@@ -48,8 +72,8 @@ export default function DoctorDashboard() {
           experience: data.experience || "",
           consultationFee: data.consultationFee || "",
           about: data.about || "",
-          gender: data.gender || "", // optional if you add later
-          avatar: data.avatar || "", // optional if you add later
+          gender: data.gender || "", // optional 
+          avatar: data.avatar || "", // optional 
         });
       } catch (e) {
         showToast(e.message || "Session expired. Please login again.", "error");
@@ -93,38 +117,38 @@ export default function DoctorDashboard() {
   }
 
   /* ================= SAVE PROFILE  ================= */
-async function saveProfile() {
-  try {
-    const res = await fetch(
-      `${API_BASE}/api/doctor-applications/me`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fullName: docForm.fullName,
-          phone: docForm.phone,
-          specialization: docForm.specialization,
-          degree: docForm.degree,
-          experience: docForm.experience,
-          consultationFee: docForm.consultationFee,
-          about: docForm.about,
-        }),
-      }
-    );
+  async function saveProfile() {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/doctor-applications/me`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fullName: docForm.fullName,
+            phone: docForm.phone,
+            specialization: docForm.specialization,
+            degree: docForm.degree,
+            experience: docForm.experience,
+            consultationFee: docForm.consultationFee,
+            about: docForm.about,
+          }),
+        }
+      );
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.message || "Failed to update profile");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to update profile");
 
-    setDoc(data.doctor ?? data); // supports both response styles
-    setEdit(false);
-    showToast("Profile updated successfully", "success");
-  } catch (e) {
-    showToast(e.message || "Failed to update profile", "error");
+      setDoc(data.doctor ?? data); // supports both response styles
+      setEdit(false);
+      showToast("Profile updated successfully", "success");
+    } catch (e) {
+      showToast(e.message || "Failed to update profile", "error");
+    }
   }
-}
 
 
   /* ================= UPDATE APPOINTMENT STATUS ================= */
@@ -222,7 +246,7 @@ async function saveProfile() {
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <Field label="Full Name" value={docForm.fullName} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, fullName: v })} />
-                      <Field label="Email" value={docForm.email} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, email: v })} />
+                      <Field label="Email" value={docForm.email} readOnly={true} />
                       <Field label="Phone" value={docForm.phone} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, phone: v })} />
                       <Field label="Specialization" value={docForm.specialization} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, specialization: v })} />
                       <Field label="Degree" value={docForm.degree} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, degree: v })} />
@@ -233,7 +257,7 @@ async function saveProfile() {
                         readOnly={!edit}
                         onChange={(v) => setDocForm({ ...docForm, consultationFee: v })}
                       />
-                      <Field label="Location" value={docForm.location} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, location: v })} />
+
 
                       <TextArea
                         className="md:col-span-2"
@@ -242,6 +266,30 @@ async function saveProfile() {
                         readOnly={!edit}
                         onChange={(v) => setDocForm({ ...docForm, about: v })}
                       />
+
+                      {/* Unavailable Slots */}
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                          Unavailable Time Slots
+                        </label>
+
+                        {doc?.unavailableSlots?.length === 0 ? (
+                          <p className="text-sm text-slate-500">No unavailable slots</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {doc.unavailableSlots.map((slot, i) => (
+                              <span
+                                key={i}
+                                className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 border border-rose-200"
+                              >
+                                {new Date(slot.date).toLocaleDateString()} • {slot.time}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+
                     </div>
 
                     <div className="mt-6 flex gap-3">
@@ -288,6 +336,28 @@ async function saveProfile() {
               </div>
             )}
 
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilter("today")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === "today"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700"
+                  }`}
+              >
+                Today
+              </button>
+
+              <button
+                onClick={() => setFilter("upcoming")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === "upcoming"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700"
+                  }`}
+              >
+                Upcoming
+              </button>
+            </div>
+
             {/* All Appointments */}
             {tab === "appointments" && (
               <div className="space-y-4">
@@ -306,9 +376,10 @@ async function saveProfile() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {appointments.map((a) => (
+                    {filteredAppointments.map((a) => (
                       <AppointmentCard key={a._id} data={a} onStatus={(s) => setStatus(a._id, s)} />
                     ))}
+
                   </div>
                 )}
               </div>
@@ -415,14 +486,14 @@ function StatusBadge({ status }) {
 function CalendarIcon() {
   return (
     <svg className="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
     </svg>
   );
 }
 function ClockIcon() {
   return (
     <svg className="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z" />
     </svg>
   );
 }

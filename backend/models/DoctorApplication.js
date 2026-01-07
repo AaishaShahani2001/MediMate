@@ -32,6 +32,13 @@ const doctorApplicationSchema = new mongoose.Schema(
       enum: ["Pending", "Approved", "Rejected"],
       default: "Pending",
     },
+    unavailableSlots: [
+      {
+        date: Date,
+        time: String
+      }
+    ],
+
   },
   { timestamps: true }
 );
