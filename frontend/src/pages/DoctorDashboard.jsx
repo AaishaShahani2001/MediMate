@@ -28,63 +28,49 @@ export default function DoctorDashboard() {
 
   /* ================= LOAD DOCTOR PROFILE ================= */
   useEffect(() => {
-    async function loadDoctorProfile() {
-      setDocLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || "Failed to load doctor profile");
+  async function loadDoctor() {
+    try {
+      const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        // data is a DoctorApplication
-        setDoc(data);
-        setDocForm({
-          fullName: data.fullName || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          specialization: data.specialization || "",
-          degree: data.degree || "",
-          experience: data.experience || "",
-          consultationFee: data.consultationFee || "",
-          about: data.about || "",
-          gender: data.gender || "", // optional if you add later
-          avatar: data.avatar || "", // optional if you add later
-        });
-      } catch (e) {
-        showToast(e.message || "Session expired. Please login again.", "error");
-        logout();
-        navigate("/login");
-      } finally {
-        setDocLoading(false);
-      }
+      if (res.status === 401) return;
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      setDoc(data);
+    } catch (err) {
+      console.error("Doctor load failed");
     }
+  }
 
-    loadDoctorProfile();
-  }, [token, logout, navigate]);
+  loadDoctor();
+}, [token]);
 
   /* ================= LOAD APPOINTMENTS WHEN TAB OPENED ================= */
   useEffect(() => {
-    if (tab !== "appointments") return;
+  if (tab !== "appointments") return;
 
-    async function loadAppointments() {
-      setApptLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/api/appointments/doctor/my`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || "Failed to load appointments");
-        setAppointments(data);
-      } catch (e) {
-        showToast(e.message || "Failed to load appointments", "error");
-      } finally {
-        setApptLoading(false);
-      }
+  async function loadAppointments() {
+    try {
+      const res = await fetch(`${API_BASE}/api/appointments/doctor/my`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setAppointments(data);
+    } catch (err) {
+      console.error("Failed to load appointments");
     }
+  }
 
-    loadAppointments();
-  }, [tab, token]);
+  loadAppointments();
+}, [tab, token]);
 
   /* ================= LOGOUT ================= */
   function handleLogout() {
