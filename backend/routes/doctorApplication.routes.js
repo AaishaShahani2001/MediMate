@@ -142,6 +142,26 @@ router.get("/public/:id", async (req, res) => {
   }
 });
 
+/*============== Get approved doctor profile for logged-in user===============*/
+router.get("/me", auth, async (req, res) => {
+  try {
+    const doctor = await DoctorApplication.findOne({
+      userId: req.userId,
+      status: "Approved",
+    });
+
+    if (!doctor) {
+      return res.status(404).json({
+        message: "Doctor profile not found or not approved",
+      });
+    }
+
+    res.json(doctor);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 
 export default router;

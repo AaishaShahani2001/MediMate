@@ -67,7 +67,7 @@ router.get("/my", auth, async (req, res) => {
 
 
 /* ================= DOCTOR: MY APPOINTMENTS ================= */
-router.get("/doctor", auth, async (req, res) => {
+router.get("/doctor/my", auth, async (req, res) => {
   try {
     if (req.user.role !== "doctor") {
       return res.status(403).json({ message: "Access denied" });
@@ -180,6 +180,51 @@ router.patch("/:id/cancel", auth, async (req, res) => {
     res.status(500).json({ message: "Failed to cancel appointment" });
   }
 });
+
+/**
+ * PATCH /api/appointments/:id/status
+ * Doctor updates appointment status
+ */
+router.patch("/:id/status", auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["Pending", "Booked", "Confirmed", "Completed", "Cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // get doctor's application
+    const doctor = await DoctorApplication.findOne({
+      userId: req.userId,
+      status: "Approved",
+    });
+
+    if (!doctor) {
+      return res.status(403).json({ message: "Doctor not authorized" });
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      doctorApplicationId: doctor._id,
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    appointment.status = status;
+    await appointment.save();
+
+    res.json({
+      message: "Appointment status updated",
+      appointment,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 
 
 export default router;
