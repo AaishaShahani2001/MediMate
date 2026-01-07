@@ -24,7 +24,6 @@ export default function BecomeDoctorModal({ onClose }) {
   const [errors, setErrors] = useState({});
   const [msg, setMsg] = useState("");
 
-  /* ---------------- VALIDATION ---------------- */
   function validate() {
     const e = {};
     if (!form.fullName) e.fullName = "Full name is required";
@@ -41,7 +40,6 @@ export default function BecomeDoctorModal({ onClose }) {
     return Object.keys(e).length === 0;
   }
 
-  /* ---------------- SUBMIT ---------------- */
   async function onSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
@@ -51,16 +49,13 @@ export default function BecomeDoctorModal({ onClose }) {
 
     try {
       const fd = new FormData();
-
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       fd.append("nic", nicFile);
       certFiles.forEach((f) => fd.append("certifications", f));
 
       const res = await fetch(`${API_BASE}/api/doctor-applications`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
 
@@ -77,11 +72,11 @@ export default function BecomeDoctorModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3 sm:px-4">
+      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl overflow-y-auto max-h-[95vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4 bg-blue-50">
-          <h3 className="text-lg font-semibold text-slate-900">
+        <div className="flex items-center justify-between border-b px-4 sm:px-6 py-4 bg-blue-50">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-900">
             👨‍⚕️ Become a Doctor
           </h3>
           <button onClick={onClose} className="text-slate-600 hover:text-black">
@@ -90,7 +85,10 @@ export default function BecomeDoctorModal({ onClose }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={onSubmit} className="grid gap-5 p-6 md:grid-cols-2">
+        <form
+          onSubmit={onSubmit}
+          className="grid gap-6 p-4 sm:p-6 md:grid-cols-2"
+        >
           {/* Basic info */}
           <Section title="Basic Information">
             <Input label="Full Name" value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} error={errors.fullName} />
@@ -129,7 +127,7 @@ export default function BecomeDoctorModal({ onClose }) {
             />
           </div>
 
-          {/* NIC upload */}
+          {/* Uploads */}
           <UploadBox
             label="NIC Upload (Required)"
             accept=".pdf,image/*"
@@ -137,9 +135,8 @@ export default function BecomeDoctorModal({ onClose }) {
             error={errors.nic}
           />
 
-          {/* Certification upload */}
           <UploadBox
-            label="Certifications / License (PDF or Images)"
+            label="Certifications / License"
             accept=".pdf,image/*"
             multiple
             onChange={(files) => setCertFiles(files)}
@@ -154,17 +151,17 @@ export default function BecomeDoctorModal({ onClose }) {
           )}
 
           {/* Actions */}
-          <div className="md:col-span-2 flex justify-end gap-3 pt-2">
+          <div className="md:col-span-2 flex flex-col-reverse sm:flex-row justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-slate-50"
+              className="w-full sm:w-auto rounded-md border px-4 py-2 text-sm font-medium hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
               disabled={submitting}
-              className="rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              className="w-full sm:w-auto rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
             >
               {submitting ? "Submitting…" : "Submit Application"}
             </button>
@@ -179,7 +176,7 @@ export default function BecomeDoctorModal({ onClose }) {
 
 function Section({ title, children }) {
   return (
-    <div className="md:col-span-1 space-y-3">
+    <div className="space-y-3">
       <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
       {children}
     </div>
@@ -236,7 +233,7 @@ function TextArea({ label, value, onChange, placeholder }) {
 
 function UploadBox({ label, accept, multiple, onChange, error }) {
   return (
-    <div>
+    <div className="rounded-xl border border-dashed p-4 hover:bg-slate-50 transition">
       <label className="text-xs font-medium text-slate-600">{label}</label>
       <input
         type="file"
@@ -247,9 +244,9 @@ function UploadBox({ label, accept, multiple, onChange, error }) {
             ? onChange(Array.from(e.target.files || []))
             : onChange(e.target.files?.[0])
         }
-        className="mt-1 block w-full text-sm"
+        className="mt-2 block w-full text-sm"
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

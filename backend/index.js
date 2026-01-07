@@ -1,10 +1,12 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import path from "path";
 import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import doctorApplicationRoutes from "./routes/doctorApplication.routes.js";
+import appointmentRoutes from "./routes/appointment.routes.js";
 
 
 const allowedOrigins = ["http://localhost:5173"];
@@ -16,10 +18,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/doctor-applications", doctorApplicationRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 
 // health
