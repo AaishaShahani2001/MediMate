@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import doctorApplicationRoutes from "./routes/doctorApplication.routes.js";
-
+import appointmentRoutes from "./routes/appointment.routes.js";
 
 
 const allowedOrigins = ["http://localhost:5173"];
@@ -24,7 +24,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/doctor-applications", doctorApplicationRoutes);
-
+app.use("/api/appointments", appointmentRoutes);
 
 
 // health
