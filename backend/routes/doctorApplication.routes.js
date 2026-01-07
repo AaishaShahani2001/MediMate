@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import DoctorApplication from "../models/DoctorApplication.js";
 import User from "../models/User.js";
+
 import { auth } from "../middleware/auth.js";
 import { adminOnly } from "../middleware/adminOnly.js";
 
@@ -109,5 +110,38 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
 
   res.json(app);
 });
+
+/* ================= PUBLIC: GET APPROVED DOCTORS ================= */
+router.get("/public", async (req, res) => {
+  try {
+    const doctors = await DoctorApplication.find({
+      status: "Approved",
+    }).sort({ createdAt: -1 });
+
+    res.json(doctors);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load doctors" });
+  }
+});
+
+/* ================= PUBLIC: GET SINGLE DOCTOR ================= */
+router.get("/public/:id", async (req, res) => {
+  try {
+    const doctor = await DoctorApplication.findOne({
+      _id: req.params.id,
+      status: "Approved",
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    res.json(doctor);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load doctor" });
+  }
+});
+
+
 
 export default router;

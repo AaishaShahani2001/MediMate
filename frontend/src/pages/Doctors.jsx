@@ -1,35 +1,81 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DoctorCard from "../components/DoctorCard";
 import CategoryPills from "../components/CategoryPills";
-import { CATEGORIES, DOCTORS } from "../data/doctors";
 import BecomeDoctorModal from "../components/BecomeDoctorModal";
+import { API_BASE } from "../context/AuthContext";
+
+/* ================= STATIC CATEGORIES ================= */
+const CATEGORIES = [
+  "All",
+  "General Physician",
+  "Cardiology",
+  "Dermatology",
+  "Pediatrics",
+  "Dental",
+  "Neurology",
+];
 
 export default function Doctors() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
   const [openApply, setOpenApply] = useState(false);
 
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  /* ================= FETCH REAL DOCTORS ================= */
+  useEffect(() => {
+    async function fetchDoctors() {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/doctor-applications/public`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+
+        // map backend → DoctorCard shape
+        const mapped = data.map((d) => ({
+          id: d._id,
+          name: d.fullName,
+          category: d.specialization,
+          years: Number(d.experience),
+          about: d.about || "No description provided.",
+        }));
+
+        setDoctors(mapped);
+      } catch (err) {
+        console.error("Failed to load doctors:", err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDoctors();
+  }, []);
+
+  /* ================= FILTERING ================= */
   const filtered = useMemo(() => {
     const byCat =
-      cat === "All" ? DOCTORS : DOCTORS.filter((d) => d.category === cat);
+      cat === "All"
+        ? doctors
+        : doctors.filter((d) => d.category === cat);
 
     const byQ = q.trim()
       ? byCat.filter(
-          (d) =>
-            d.name.toLowerCase().includes(q.toLowerCase()) ||
-            d.category.toLowerCase().includes(q.toLowerCase())
-        )
+        (d) =>
+          d.name.toLowerCase().includes(q.toLowerCase()) ||
+          d.category.toLowerCase().includes(q.toLowerCase())
+      )
       : byCat;
 
     return byQ;
-  }, [q, cat]);
+  }, [q, cat, doctors]);
 
   return (
     <main className="min-h-screen bg-white">
       {/* ================= TOP SECTION ================= */}
       <section className="border-b bg-linear-to-br from-blue-50 via-white to-indigo-50">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
-          {/* Header row */}
+          {/* Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">
@@ -40,7 +86,6 @@ export default function Doctors() {
               </p>
             </div>
 
-            {/* Button */}
             <button
               onClick={() => setOpenApply(true)}
               className="w-full sm:w-auto rounded-md bg-blue-600 px-5 py-2.5
@@ -93,7 +138,9 @@ export default function Doctors() {
 
       {/* ================= DOCTOR GRID ================= */}
       <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="text-slate-500">Loading doctors...</p>
+        ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300
             p-8 text-center text-sm sm:text-base text-slate-600">
             No doctors found for your search.
