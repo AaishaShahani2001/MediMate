@@ -8,6 +8,7 @@ import userRoutes from "./routes/user.routes.js";
 import doctorApplicationRoutes from "./routes/doctorApplication.routes.js";
 
 
+
 const allowedOrigins = ["http://localhost:5173"];
 
 //Initializing express app
@@ -23,6 +24,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/doctor-applications", doctorApplicationRoutes);
+
 
 
 // health

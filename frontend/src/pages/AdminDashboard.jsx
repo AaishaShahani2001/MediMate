@@ -80,7 +80,7 @@ export default function AdminDashboard() {
             documents,
           };
         });
-console.log("Selected Doc:", selectedDoc);
+      //console.log("Selected Doc:", selectedDoc);
 
         setRequests(mapped);
       } catch (err) {
