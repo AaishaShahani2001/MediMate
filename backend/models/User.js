@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
       default: "O+",
     },
 
-    dob: { type: Date },   // ✅ ADD THIS
+    dob: { type: Date },
   },
   { timestamps: true }
 );

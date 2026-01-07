@@ -21,7 +21,7 @@ export default function DoctorCard({ doc }) {
         <Avatar name={doc.name} />
         <div className="flex-1">
           <div className="text-sm font-medium text-blue-700">{doc.category}</div>
-          <h3 className="text-lg font-semibold text-slate-900">{doc.name}</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{`Dr ${doc.name}`}</h3>
           <p className="text-sm text-slate-600">{doc.years}+ years experience</p>
           <p className="mt-2 line-clamp-2 text-sm text-slate-600">{doc.about}</p>
 
