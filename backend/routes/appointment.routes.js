@@ -98,7 +98,7 @@ router.get("/doctor/my", auth, doctorOnly, async (req, res) => {
   const appts = await Appointment.find({
     doctorApplicationId: doctor._id,
   })
-    .populate("patientId", "name email")
+    .populate("patientId", "name email phone dob blood")
     .sort({ date: 1 });
 
   res.json(appts);
@@ -164,6 +164,30 @@ router.patch("/:id/cancel", auth, async (req, res) => {
 
   res.json({ message: "Cancelled", appointment: appt });
 });
+
+/* ================= DOCTOR: GET PATIENT HISTORY ================= */
+router.get(
+  "/patient/:patientId/history",
+  auth,
+  async (req, res) => {
+    try {
+      const doctor = await DoctorApplication.findOne({
+        userId: req.user.id,
+      });
+
+      const history = await Appointment.find({
+        patientId: req.params.patientId,
+        doctorApplicationId: doctor._id,
+      })
+        .sort({ date: -1 });
+
+      res.json(history);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to load medical history" });
+    }
+  }
+);
+
 
 
 export default router;

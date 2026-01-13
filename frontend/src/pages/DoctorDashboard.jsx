@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
+import AppointmentDetailsModal from "../components/AppointmentDetailsModal"
 
 export default function DoctorDashboard() {
   const [tab, setTab] = useState("profile"); // profile | appointments | password
   const [edit, setEdit] = useState(false);
-  const [filter, setFilter] = useState("today"); // all | today | upcoming
-
+  const [filter, setFilter] = useState("all"); // all | today | upcoming
+  const [viewAppt, setViewAppt] = useState(null);
 
   const { token, logout } = useAuth();
   const navigate = useNavigate();
@@ -332,7 +333,7 @@ export default function DoctorDashboard() {
               </div>
             )}
 
-            <section className="md:col-span-9">
+           
               {/* ================= APPOINTMENTS ================= */}
               {tab === "appointments" && (
                 <div className="space-y-4">
@@ -344,8 +345,8 @@ export default function DoctorDashboard() {
                         type="button"
                         onClick={() => setFilter(f)}
                         className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === f
-                            ? "bg-blue-600 text-white"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                           }`}
                       >
                         {f === "all"
@@ -381,13 +382,14 @@ export default function DoctorDashboard() {
                           key={a._id}
                           data={a}
                           onStatus={(s) => setStatus(a._id, s)}
+                          onView={() => setViewAppt(a)}
                         />
                       ))}
                     </div>
                   )}
                 </div>
               )}
-            </section>
+           
 
 
             {/* Reset Password (UI-only kept) */}
@@ -412,6 +414,14 @@ export default function DoctorDashboard() {
           </section>
         </div>
       </div>
+      {/* ================= APPOINTMENT DETAILS MODAL ================= */}
+      {viewAppt && (
+        <AppointmentDetailsModal
+          appointment={viewAppt}
+          token={token}
+          onClose={() => setViewAppt(null)}
+        />
+      )}
     </main>
   );
 }
@@ -503,7 +513,7 @@ function ClockIcon() {
   );
 }
 
-function AppointmentCard({ data, onStatus }) {
+function AppointmentCard({ data, onStatus, onView }) {
   // Appointment schema:
   // patientId (populated User), doctorApplicationId (DoctorApplication), date, time, status
   const patient = data.patientId; // expects populate("patientId","name email phone")
@@ -544,7 +554,6 @@ function AppointmentCard({ data, onStatus }) {
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="Pending">Pending</option>
-              <option value="Booked">Booked</option>
               <option value="Confirmed">Confirmed</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
@@ -552,6 +561,7 @@ function AppointmentCard({ data, onStatus }) {
 
             <button
               type="button"
+              onClick={onView}
               className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               View Details
@@ -578,3 +588,7 @@ function Toast({ toast }) {
     </div>
   );
 }
+
+
+
+
