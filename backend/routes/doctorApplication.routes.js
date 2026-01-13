@@ -2,9 +2,9 @@ import express from "express";
 import multer from "multer";
 import DoctorApplication from "../models/DoctorApplication.js";
 import User from "../models/User.js";
-
 import { auth } from "../middleware/auth.js";
 import { adminOnly } from "../middleware/adminOnly.js";
+import { doctorOnly } from "../middleware/doctorOnly.js";
 
 const router = express.Router();
 
@@ -90,7 +90,7 @@ router.get("/", auth, adminOnly, async (req, res) => {
 
 /* ================= ADMIN: APPROVE / REJECT ================= */
 
-router.patch("/:id", auth, adminOnly, async (req, res) => {
+router.patch("/:id/status", auth, adminOnly, async (req, res) => {
   const { status } = req.body;
 
   if (!["Approved", "Rejected"].includes(status)) {
@@ -142,6 +142,71 @@ router.get("/public/:id", async (req, res) => {
   }
 });
 
+/*============== Get approved doctor profile for logged-in user===============*/
+router.get("/me", auth, async (req, res) => {
+  try {
+    const doctor = await DoctorApplication.findOne({
+      userId: req.user.id,
+    });
 
+    if (!doctor) {
+      return res.status(404).json({
+        message: "Doctor application not found"
+      });
+    }
+
+    if (doctor.status !== "Approved") {
+      return res.status(403).json({
+        message: "Doctor application not approved yet",
+        status: doctor.status
+      });
+    }
+
+    res.json(doctor);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ================= DOCTOR: MY PROFILE ================= */
+router.get("/me", auth, doctorOnly, async (req, res) => {
+  const doctor = await DoctorApplication.findOne({
+    userId: req.user.id,
+    status: "Approved",
+  });
+
+  if (!doctor) {
+    return res.status(404).json({
+      message: "Doctor profile not found or not approved",
+    });
+  }
+
+  res.json(doctor);
+});
+
+/* ================= DOCTOR: UPDATE MY PROFILE ================= */
+router.patch("/me", auth, doctorOnly, async (req, res) => {
+  const doctor = await DoctorApplication.findOneAndUpdate(
+    { userId: req.user.id, status: "Approved" },
+    {
+      fullName: req.body.fullName,
+      phone: req.body.phone,
+      specialization: req.body.specialization,
+      degree: req.body.degree,
+      experience: req.body.experience,
+      consultationFee: req.body.consultationFee,
+      about: req.body.about,
+    },
+    { new: true }
+  );
+
+  if (!doctor) {
+    return res.status(404).json({
+      message: "Doctor profile not found or not approved",
+    });
+  }
+
+  res.json({ message: "Profile updated successfully", doctor });
+});
 
 export default router;

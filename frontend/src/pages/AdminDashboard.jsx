@@ -96,7 +96,7 @@ export default function AdminDashboard() {
   /* ================= APPROVE / REJECT ================= */
   async function actOnRequest(id, status) {
     try {
-      const res = await fetch(`${API_BASE}/api/doctor-applications/${id}`, {
+      const res = await fetch(`${API_BASE}/api/doctor-applications/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
     }
   }
 
-  /* ================= UI (UNCHANGED BELOW) ================= */
+  /* ================= UI  ================= */
 
   return (
     <main className="min-h-screen bg-slate-50">
