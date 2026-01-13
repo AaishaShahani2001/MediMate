@@ -7,7 +7,7 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import doctorApplicationRoutes from "./routes/doctorApplication.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
-
+import reportRoutes from "./routes/reportRoutes.js";
 
 const allowedOrigins = ["http://localhost:5173"];
 
@@ -25,7 +25,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/doctor-applications", doctorApplicationRoutes);
 app.use("/api/appointments", appointmentRoutes);
-
+app.use("/api/reports", reportRoutes);
 
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));
