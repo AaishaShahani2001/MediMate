@@ -209,4 +209,21 @@ router.patch("/me", auth, doctorOnly, async (req, res) => {
   res.json({ message: "Profile updated successfully", doctor });
 });
 
+router.get(
+  "/appointment/:appointmentId",
+  auth,
+  async (req, res) => {
+    try {
+      const reports = await Report.find({
+        appointmentId: req.params.appointmentId,
+      }).sort({ createdAt: -1 });
+
+      res.json(reports);
+    } catch {
+      res.status(500).json({ message: "Failed to load reports" });
+    }
+  }
+);
+
+
 export default router;
