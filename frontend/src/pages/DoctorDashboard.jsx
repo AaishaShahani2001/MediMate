@@ -5,7 +5,7 @@ import { useAuth, API_BASE } from "../context/AuthContext";
 export default function DoctorDashboard() {
   const [tab, setTab] = useState("profile"); // profile | appointments | password
   const [edit, setEdit] = useState(false);
-  const [filter, setFilter] = useState("today"); // today | upcoming
+  const [filter, setFilter] = useState("today"); // all | today | upcoming
 
 
   const { token, logout } = useAuth();
@@ -30,21 +30,17 @@ export default function DoctorDashboard() {
 
   // Filter appointments based on the selected filter
   const filteredAppointments = useMemo(() => {
+    if (filter === "all") return appointments;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return appointments.filter((a) => {
-      const apptDate = new Date(a.date);
-      apptDate.setHours(0, 0, 0, 0);
+      const d = new Date(a.date);
+      d.setHours(0, 0, 0, 0);
 
-      if (filter === "today") {
-        return apptDate.getTime() === today.getTime();
-      }
-
-      if (filter === "upcoming") {
-        return apptDate > today;
-      }
-
+      if (filter === "today") return d.getTime() === today.getTime();
+      if (filter === "upcoming") return d > today;
       return true;
     });
   }, [appointments, filter]);
@@ -336,54 +332,63 @@ export default function DoctorDashboard() {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter("today")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === "today"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700"
-                  }`}
-              >
-                Today
-              </button>
-
-              <button
-                onClick={() => setFilter("upcoming")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === "upcoming"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700"
-                  }`}
-              >
-                Upcoming
-              </button>
-            </div>
-
-            {/* All Appointments */}
-            {tab === "appointments" && (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-                  <h1 className="text-xl font-semibold text-slate-900">All Appointments</h1>
-                  <p className="text-sm text-slate-600">Your upcoming and past appointments</p>
-                </div>
-
-                {apptLoading ? (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-slate-600">
-                    Loading appointments...
-                  </div>
-                ) : appointments.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
-                    No appointments yet.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {filteredAppointments.map((a) => (
-                      <AppointmentCard key={a._id} data={a} onStatus={(s) => setStatus(a._id, s)} />
+            <section className="md:col-span-9">
+              {/* ================= APPOINTMENTS ================= */}
+              {tab === "appointments" && (
+                <div className="space-y-4">
+                  {/* FILTER BUTTONS */}
+                  <div className="flex gap-2">
+                    {["all", "today", "upcoming"].map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setFilter(f)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === f
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                      >
+                        {f === "all"
+                          ? "All"
+                          : f.charAt(0).toUpperCase() + f.slice(1)}
+                      </button>
                     ))}
-
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* HEADER */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+                    <h1 className="text-xl font-semibold text-slate-900">
+                      All Appointments
+                    </h1>
+                    <p className="text-sm text-slate-600">
+                      Your upcoming and past appointments
+                    </p>
+                  </div>
+
+                  {/* CONTENT */}
+                  {apptLoading ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-slate-600">
+                      Loading appointments...
+                    </div>
+                  ) : filteredAppointments.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
+                      No appointments found.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {filteredAppointments.map((a) => (
+                        <AppointmentCard
+                          key={a._id}
+                          data={a}
+                          onStatus={(s) => setStatus(a._id, s)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
 
             {/* Reset Password (UI-only kept) */}
             {tab === "password" && (
