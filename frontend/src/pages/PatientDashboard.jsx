@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
+import AIHealthAssistant from "../components/AIHealthAssistant";
+
 
 export default function PatientDashboard() {
   const [tab, setTab] = useState("profile");
@@ -121,55 +123,42 @@ export default function PatientDashboard() {
   }
 
   /* ================= SAVE PROFILE ================= */
-async function onSaveProfile(e) {
-  e.preventDefault();
-  if (!validateProfile()) return;
+  async function onSaveProfile(e) {
+    e.preventDefault();
+    if (!validateProfile()) return;
 
-  try {
-    // ✅ Use FormData instead of JSON
-    const formData = new FormData();
-    formData.append("name", form.name);
-    formData.append("phone", form.phone);
-    formData.append("gender", form.gender);
-    formData.append("blood", form.blood);
-    formData.append("dob", form.dob);
+    try {
+      const res = await fetch(`${API_BASE}/api/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          gender: form.gender,
+          blood: form.blood,
+          dob: form.dob,
+        }),
+      });
 
-    // ✅ If user selected a NEW avatar
-    if (form.avatar instanceof File) {
-      formData.append("avatar", form.avatar);
+      if (!res.ok) throw new Error("Update failed");
+
+      const data = await res.json();
+
+      const updated = {
+        ...form,
+        dob: data.user.dob ? data.user.dob.slice(0, 10) : "",
+      };
+
+      setPatient(updated);
+      setForm(updated);
+      setTab("profile");
+    } catch (err) {
+      alert("Failed to save profile");
     }
-
-    // ✅ If user clicked "Remove avatar"
-    if (removeAvatar) {
-      formData.append("removeAvatar", "true");
-    }
-
-    const res = await fetch(`${API_BASE}/api/users/me`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`, // ❗ NO Content-Type
-      },
-      body: formData,
-    });
-
-    if (!res.ok) throw new Error("Update failed");
-
-    const data = await res.json();
-
-    const updated = {
-      ...form,
-      avatar: data.user.avatar || "",
-      dob: data.user.dob ? data.user.dob.slice(0, 10) : "",
-    };
-
-    setPatient(updated);
-    setForm(updated);
-    setRemoveAvatar(false); // reset flag
-    setTab("profile");
-  } catch (err) {
-    alert("Failed to save profile");
   }
-}
 
   function onCancelEdit() {
     setForm(patient);
@@ -256,6 +245,8 @@ async function onSaveProfile(e) {
                 <SideItem icon="👤" label="My Profile" active={tab === "profile"} onClick={() => setTab("profile")} />
                 <SideItem icon="📅" label="My Appointments" active={tab === "appointments"} onClick={() => setTab("appointments")} />
                 <SideItem icon="📤" label="Upload Report" active={tab === "upload"} onClick={() => setTab("upload")} />
+                <SideItem icon="🤖" label="AI Health Assistant" active={tab === "ai"} onClick={() => setTab("ai")} />
+
               </nav>
 
               <button
@@ -408,6 +399,11 @@ async function onSaveProfile(e) {
                 />
               </div>
             )}
+
+            {tab === "ai" && (
+              <AIHealthAssistant token={token} />
+            )}
+
 
 
           </section>
