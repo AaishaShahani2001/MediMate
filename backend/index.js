@@ -10,7 +10,7 @@ import doctorApplicationRoutes from "./routes/doctorApplication.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import adminRoutes from "./routes/admin.routes.js"
-
+import aiRoutes from "./routes/ai.routes.js";
 
 const allowedOrigins = ["http://localhost:5173"];
 
@@ -38,6 +38,7 @@ app.use("/api/doctor-applications", doctorApplicationRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ai", aiRoutes);
 
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));
