@@ -1,22 +1,17 @@
 import { useState, useEffect } from "react";
 import { API_BASE, useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+
 
 export default function AdminDashboard() {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [tab, setTab] = useState("dashboard");
-
+  const navigate = useNavigate();
   const stats = { patients: 3, doctors: 3, admins: 1 };
 
   // REAL doctor requests
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  // Messages (demo)
-  const messages = [
-    { id: "m1", from: "patient01@example.com", subject: "Unable to join video call", time: "10:12 AM" },
-    { id: "m2", from: "dr.maya@example.com", subject: "Request to edit profile details", time: "Yesterday" },
-    { id: "m3", from: "patient02@example.com", subject: "Password reset confirmation", time: "2 days ago" },
-  ];
 
   // View Details modal
   const [detailOpen, setDetailOpen] = useState(false);
@@ -31,6 +26,35 @@ export default function AdminDashboard() {
     setDetailOpen(false);
     setSelectedDoc(null);
   }
+
+  useEffect(() => {
+    if (tab !== "dashboard") return;
+
+    async function fetchStats() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/stats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+
+        setStats({
+          doctors: data.totalDoctors,
+          users: data.totalUsers,
+          appointments: data.totalAppointments,
+        });
+      } catch (err) {
+        console.error("Failed to load stats:", err.message);
+      }
+    }
+
+    fetchStats();
+  }, [tab, token]);
+
 
   /* ================= FETCH DOCTOR REQUESTS ================= */
   useEffect(() => {
@@ -80,7 +104,7 @@ export default function AdminDashboard() {
             documents,
           };
         });
-      //console.log("Selected Doc:", selectedDoc);
+        //console.log("Selected Doc:", selectedDoc);
 
         setRequests(mapped);
       } catch (err) {
@@ -115,6 +139,13 @@ export default function AdminDashboard() {
     }
   }
 
+  /* ================= LOGOUT ================= */
+  function handleLogout() {
+    logout();
+    navigate("/login");
+  }
+
+
   /* ================= UI  ================= */
 
   return (
@@ -131,7 +162,10 @@ export default function AdminDashboard() {
                 <SideItem icon="✉️" label="Messages" active={tab === "messages"} onClick={() => setTab("messages")} />
                 <SideItem icon="🔒" label="Change Password" active={tab === "password"} onClick={() => setTab("password")} />
               </nav>
-              <button className="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700">
+              <button
+                className="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700"
+                onClick={handleLogout}
+              >
                 Logout
               </button>
             </div>
@@ -139,6 +173,37 @@ export default function AdminDashboard() {
 
           {/* Main */}
           <section className="md:col-span-9">
+
+            {tab === "dashboard" && (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+
+                {/* Doctors */}
+                <div className="rounded-2xl bg-white p-6 shadow-sm border">
+                  <p className="text-sm text-slate-500">Total Doctors</p>
+                  <h3 className="mt-2 text-3xl font-bold text-blue-600">
+                    {stats.doctors}
+                  </h3>
+                </div>
+
+                {/* Users */}
+                <div className="rounded-2xl bg-white p-6 shadow-sm border">
+                  <p className="text-sm text-slate-500">Total Users</p>
+                  <h3 className="mt-2 text-3xl font-bold text-emerald-600">
+                    {stats.users}
+                  </h3>
+                </div>
+
+                {/* Appointments */}
+                <div className="rounded-2xl bg-white p-6 shadow-sm border">
+                  <p className="text-sm text-slate-500">Total Appointments</p>
+                  <h3 className="mt-2 text-3xl font-bold text-rose-600">
+                    {stats.appointments}
+                  </h3>
+                </div>
+
+              </div>
+            )}
+
 
             {/* Doctor Requests */}
             {tab === "requests" && (
