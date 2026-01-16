@@ -23,6 +23,7 @@ export default function PatientDashboard() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const avatarInputRef = useRef(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   /* ================= APPOINTMENTS STATE ================= */
   const [appointments, setAppointments] = useState([]);
@@ -52,7 +53,7 @@ export default function PatientDashboard() {
           dob: data.dob ? data.dob.slice(0, 10) : "",
           blood: data.blood || "O+",
           gender: data.gender || "Female",
-          avatar: "",
+          avatar: data.avatar || "",
         };
 
         setPatient(mapped);
@@ -120,42 +121,55 @@ export default function PatientDashboard() {
   }
 
   /* ================= SAVE PROFILE ================= */
-  async function onSaveProfile(e) {
-    e.preventDefault();
-    if (!validateProfile()) return;
+async function onSaveProfile(e) {
+  e.preventDefault();
+  if (!validateProfile()) return;
 
-    try {
-      const res = await fetch(`${API_BASE}/api/users/me`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: form.name,
-          phone: form.phone,
-          gender: form.gender,
-          blood: form.blood,
-          dob: form.dob,
-        }),
-      });
+  try {
+    // ✅ Use FormData instead of JSON
+    const formData = new FormData();
+    formData.append("name", form.name);
+    formData.append("phone", form.phone);
+    formData.append("gender", form.gender);
+    formData.append("blood", form.blood);
+    formData.append("dob", form.dob);
 
-      if (!res.ok) throw new Error("Update failed");
-
-      const data = await res.json();
-
-      const updated = {
-        ...form,
-        dob: data.user.dob ? data.user.dob.slice(0, 10) : "",
-      };
-
-      setPatient(updated);
-      setForm(updated);
-      setTab("profile");
-    } catch (err) {
-      alert("Failed to save profile");
+    // ✅ If user selected a NEW avatar
+    if (form.avatar instanceof File) {
+      formData.append("avatar", form.avatar);
     }
+
+    // ✅ If user clicked "Remove avatar"
+    if (removeAvatar) {
+      formData.append("removeAvatar", "true");
+    }
+
+    const res = await fetch(`${API_BASE}/api/users/me`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`, // ❗ NO Content-Type
+      },
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error("Update failed");
+
+    const data = await res.json();
+
+    const updated = {
+      ...form,
+      avatar: data.user.avatar || "",
+      dob: data.user.dob ? data.user.dob.slice(0, 10) : "",
+    };
+
+    setPatient(updated);
+    setForm(updated);
+    setRemoveAvatar(false); // reset flag
+    setTab("profile");
+  } catch (err) {
+    alert("Failed to save profile");
   }
+}
 
   function onCancelEdit() {
     setForm(patient);
@@ -259,6 +273,24 @@ export default function PatientDashboard() {
             {/* PROFILE */}
             {tab === "profile" && (
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-4 mb-6">
+                  {patient.avatar ? (
+                    <img
+                      src={patient.avatar}
+                      alt="Profile"
+                      className="h-20 w-20 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-700">
+                      {patient.name?.[0]}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="font-semibold text-slate-900">{patient.name}</p>
+                  </div>
+                </div>
+
                 <h1 className="text-xl font-semibold mb-4">My Profile</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Info label="Full Name" value={patient.name} />
@@ -281,6 +313,46 @@ export default function PatientDashboard() {
             {/* EDIT */}
             {tab === "edit" && (
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <div className="sm:col-span-2 flex items-center gap-4">
+                  {form.avatar && typeof form.avatar === "string" ? (
+                    <img
+                      src={form.avatar}
+                      className="h-16 w-16 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700">
+                      {form.name?.[0]}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        setForm({ ...form, avatar: e.target.files[0] });
+                        setRemoveAvatar(false);
+                      }}
+                      className="text-sm"
+                    />
+
+                    {patient.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, avatar: "" });
+                          setRemoveAvatar(true);
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Remove avatar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+
                 <h1 className="text-xl font-semibold mb-4">Edit Profile</h1>
 
                 <form onSubmit={onSaveProfile} className="grid sm:grid-cols-2 gap-4">
@@ -418,7 +490,7 @@ function AppointmentCard({ appt, onEdit, onCancel }) {
       {/* LEFT */}
       <div>
         <div className="font-semibold text-slate-900">
-           Dr. {d?.fullName || "Doctor"}
+          Dr. {d?.fullName || "Doctor"}
         </div>
         <div className="text-sm text-slate-600">
           {d?.specialization}

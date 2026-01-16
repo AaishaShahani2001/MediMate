@@ -13,7 +13,7 @@ function makeNext7Days() {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push({
-      key: d.toISOString(), // IMPORTANT for backend Date
+      key: d.toISOString(),
       label: d.toLocaleDateString(undefined, opts),
     });
   }
@@ -73,44 +73,44 @@ export default function DoctorDetails() {
 
   /* ================= BOOK APPOINTMENT ================= */
   async function bookAppointment() {
-  if (!token) {
-    setMsg("Please login to book an appointment.");
-    return;
+    if (!token) {
+      setMsg("Please login to book an appointment.");
+      return;
+    }
+
+    if (!selectedDay || !selectedSlot) {
+      setMsg("Please select date and time.");
+      return;
+    }
+
+    setBooking(true);
+    setMsg("");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/appointments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          doctorId: doctor._id,
+          date: selectedDay,
+          time: selectedSlot,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setMsg("✅ Appointment booked successfully!");
+      setSelectedSlot("");
+    } catch (err) {
+      setMsg(err.message || "Booking failed");
+    } finally {
+      setBooking(false);
+    }
   }
-
-  if (!selectedDay || !selectedSlot) {
-    setMsg("Please select date and time.");
-    return;
-  }
-
-  setBooking(true);
-  setMsg("");
-
-  try {
-    const res = await fetch(`${API_BASE}/api/appointments`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        doctorId: doctor._id,
-        date: selectedDay,
-        time: selectedSlot,
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
-
-    setMsg("✅ Appointment booked successfully!");
-    setSelectedSlot("");
-  } catch (err) {
-    setMsg(err.message || "Booking failed");
-  } finally {
-    setBooking(false);
-  }
-}
 
 
   /* ================= STATES ================= */
@@ -146,16 +146,25 @@ export default function DoctorDetails() {
           </Link>
 
           <div className="mt-5 flex flex-col gap-6 md:flex-row md:items-center">
-            <div className="grid h-24 w-24 place-items-center rounded-2xl bg-linear-to-tr from-blue-200 to-indigo-200 text-3xl font-bold text-slate-800">
-              Dr.{initials}
-            </div>
+            {doctor.avatar ? (
+              <img
+                src={doctor.avatar}
+                alt={doctor.fullName}
+                className="h-24 w-24 rounded-2xl object-cover ring-2 ring-blue-200"
+              />
+            ) : (
+              <div className="grid h-24 w-24 place-items-center rounded-2xl bg-linear-to-tr from-blue-200 to-indigo-200 text-3xl font-bold text-slate-800 ring-2 ring-blue-200">
+                {initials}
+              </div>
+            )}
+
 
             <div>
               <div className="text-sm font-medium text-blue-700">
                 {doctor.specialization}
               </div>
               <h1 className="text-2xl font-semibold text-slate-900">
-                {doctor.fullName}
+                Dr.{doctor.fullName}
               </h1>
               <p className="text-slate-600">
                 {doctor.experience}+ years experience
@@ -207,11 +216,10 @@ export default function DoctorDetails() {
                     <button
                       key={d.key}
                       onClick={() => setSelectedDay(d.key)}
-                      className={`rounded-lg border px-2 py-2 text-sm ${
-                        selectedDay === d.key
+                      className={`rounded-lg border px-2 py-2 text-sm ${selectedDay === d.key
                           ? "bg-blue-600 text-white"
                           : "bg-white text-slate-700 hover:text-blue-700"
-                      }`}
+                        }`}
                     >
                       {d.label}
                     </button>
@@ -229,11 +237,10 @@ export default function DoctorDetails() {
                     <button
                       key={s}
                       onClick={() => setSelectedSlot(s)}
-                      className={`rounded-lg border px-2 py-2 text-sm ${
-                        selectedSlot === s
+                      className={`rounded-lg border px-2 py-2 text-sm ${selectedSlot === s
                           ? "bg-blue-600 text-white"
                           : "bg-white text-slate-700 hover:text-blue-700"
-                      }`}
+                        }`}
                     >
                       {s}
                     </button>
