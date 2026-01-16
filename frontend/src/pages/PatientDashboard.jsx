@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
+import AIHealthAssistant from "../components/AIHealthAssistant";
+
 
 export default function PatientDashboard() {
   const [tab, setTab] = useState("profile");
@@ -242,6 +244,8 @@ export default function PatientDashboard() {
                 <SideItem icon="👤" label="My Profile" active={tab === "profile"} onClick={() => setTab("profile")} />
                 <SideItem icon="📅" label="My Appointments" active={tab === "appointments"} onClick={() => setTab("appointments")} />
                 <SideItem icon="📤" label="Upload Report" active={tab === "upload"} onClick={() => setTab("upload")} />
+                <SideItem icon="🤖" label="AI Health Assistant" active={tab === "ai"} onClick={() => setTab("ai")} />
+
               </nav>
 
               <button
@@ -337,6 +341,11 @@ export default function PatientDashboard() {
               </div>
             )}
 
+            {tab === "ai" && (
+              <AIHealthAssistant token={token} />
+            )}
+
+
 
           </section>
         </div>
@@ -418,7 +427,7 @@ function AppointmentCard({ appt, onEdit, onCancel }) {
       {/* LEFT */}
       <div>
         <div className="font-semibold text-slate-900">
-           Dr. {d?.fullName || "Doctor"}
+          Dr. {d?.fullName || "Doctor"}
         </div>
         <div className="text-sm text-slate-600">
           {d?.specialization}
