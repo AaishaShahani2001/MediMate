@@ -38,6 +38,10 @@ const doctorApplicationSchema = new mongoose.Schema(
         time: String
       }
     ],
+    avatar: {
+      type: String,
+      default: "",
+    }
 
   },
   { timestamps: true }
