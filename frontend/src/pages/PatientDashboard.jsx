@@ -25,6 +25,7 @@ export default function PatientDashboard() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const avatarInputRef = useRef(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   /* ================= APPOINTMENTS STATE ================= */
   const [appointments, setAppointments] = useState([]);
@@ -54,7 +55,7 @@ export default function PatientDashboard() {
           dob: data.dob ? data.dob.slice(0, 10) : "",
           blood: data.blood || "O+",
           gender: data.gender || "Female",
-          avatar: "",
+          avatar: data.avatar || "",
         };
 
         setPatient(mapped);
@@ -263,6 +264,24 @@ export default function PatientDashboard() {
             {/* PROFILE */}
             {tab === "profile" && (
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-4 mb-6">
+                  {patient.avatar ? (
+                    <img
+                      src={patient.avatar}
+                      alt="Profile"
+                      className="h-20 w-20 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-700">
+                      {patient.name?.[0]}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="font-semibold text-slate-900">{patient.name}</p>
+                  </div>
+                </div>
+
                 <h1 className="text-xl font-semibold mb-4">My Profile</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Info label="Full Name" value={patient.name} />
@@ -285,6 +304,46 @@ export default function PatientDashboard() {
             {/* EDIT */}
             {tab === "edit" && (
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <div className="sm:col-span-2 flex items-center gap-4">
+                  {form.avatar && typeof form.avatar === "string" ? (
+                    <img
+                      src={form.avatar}
+                      className="h-16 w-16 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700">
+                      {form.name?.[0]}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        setForm({ ...form, avatar: e.target.files[0] });
+                        setRemoveAvatar(false);
+                      }}
+                      className="text-sm"
+                    />
+
+                    {patient.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, avatar: "" });
+                          setRemoveAvatar(true);
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Remove avatar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+
                 <h1 className="text-xl font-semibold mb-4">Edit Profile</h1>
 
                 <form onSubmit={onSaveProfile} className="grid sm:grid-cols-2 gap-4">

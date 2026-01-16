@@ -1,4 +1,5 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -8,12 +9,21 @@ import userRoutes from "./routes/user.routes.js";
 import doctorApplicationRoutes from "./routes/doctorApplication.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
 import reportRoutes from "./routes/reportRoutes.js";
-import aiRoutes from "./routes/ai.routes.js";
+import adminRoutes from "./routes/admin.routes.js"
+
 
 const allowedOrigins = ["http://localhost:5173"];
 
 //Initializing express app
 const app = express();
+
+// app.use(cors({
+//   origin: "http://localhost:5176", // frontend URL
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"]
+// }));
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -27,7 +37,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/doctor-applications", doctorApplicationRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reports", reportRoutes);
-app.use("/api/ai", aiRoutes);
+app.use("/api/admin", adminRoutes);
 
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));

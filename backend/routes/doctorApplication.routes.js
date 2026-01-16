@@ -5,6 +5,8 @@ import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import { adminOnly } from "../middleware/adminOnly.js";
 import { doctorOnly } from "../middleware/doctorOnly.js";
+import uploadAvatar from "../middleware/uploadAvatar.js";
+
 
 const router = express.Router();
 
@@ -116,7 +118,10 @@ router.get("/public", async (req, res) => {
   try {
     const doctors = await DoctorApplication.find({
       status: "Approved",
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 })
+    .select(
+        "fullName specialization experience about avatar"
+      );
 
     res.json(doctors);
   } catch (err) {
@@ -130,7 +135,9 @@ router.get("/public/:id", async (req, res) => {
     const doctor = await DoctorApplication.findOne({
       _id: req.params.id,
       status: "Approved",
-    });
+    }).select(
+      "fullName specialization degree experience consultationFee about avatar"
+    );
 
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
@@ -185,30 +192,63 @@ router.get("/me", auth, doctorOnly, async (req, res) => {
 });
 
 /* ================= DOCTOR: UPDATE MY PROFILE ================= */
-router.patch("/me", auth, doctorOnly, async (req, res) => {
-  const doctor = await DoctorApplication.findOneAndUpdate(
-    { userId: req.user.id, status: "Approved" },
-    {
-      fullName: req.body.fullName,
-      phone: req.body.phone,
-      specialization: req.body.specialization,
-      degree: req.body.degree,
-      experience: req.body.experience,
-      consultationFee: req.body.consultationFee,
-      about: req.body.about,
-    },
-    { new: true }
-  );
 
-  if (!doctor) {
-    return res.status(404).json({
-      message: "Doctor profile not found or not approved",
-    });
+router.patch(
+  "/me",
+  auth,
+  doctorOnly,
+  uploadAvatar.single("avatar"),
+  async (req, res) => {
+    try {
+      const doctor = await DoctorApplication.findOne({
+        userId: req.user.id,
+        status: { $in: ["Approved", "approved"] },
+      });
+
+      if (!doctor) {
+        return res.status(404).json({
+          message: "Doctor profile not found or not approved",
+        });
+      }
+
+      // ---------- Update fields ----------
+      doctor.fullName = req.body.fullName ?? doctor.fullName;
+      doctor.phone = req.body.phone ?? doctor.phone;
+      doctor.specialization = req.body.specialization ?? doctor.specialization;
+      doctor.degree = req.body.degree ?? doctor.degree;
+      doctor.experience = req.body.experience ?? doctor.experience;
+      doctor.consultationFee = req.body.consultationFee ?? doctor.consultationFee;
+      doctor.about = req.body.about ?? doctor.about;
+
+      // ---------- REMOVE AVATAR ----------
+      if (req.body.removeAvatar === "true") {
+        doctor.avatar = "";
+      }
+
+      // ---------- UPLOAD NEW AVATAR ----------
+      if (req.file) {
+        doctor.avatar = req.file.path;
+      }
+
+      await doctor.save();
+      return res.json(doctor);
+
+    } catch (err) {
+      console.error("Doctor profile update error:", err);
+
+      // PREVENT DOUBLE RESPONSE
+      if (!res.headersSent) {
+        return res.status(500).json({
+          message: "Failed to update profile",
+        });
+      }
+    }
   }
+);
 
-  res.json({ message: "Profile updated successfully", doctor });
-});
 
+
+/* ================= DOCTOR: GET APPOINTMENT FOR EACH DOCTOR ================= */
 router.get(
   "/appointment/:appointmentId",
   auth,

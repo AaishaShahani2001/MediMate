@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
+import AppointmentDetailsModal from "../components/AppointmentDetailsModal"
+import { useRef } from "react";
 
 export default function DoctorDashboard() {
   const [tab, setTab] = useState("profile"); // profile | appointments | password
   const [edit, setEdit] = useState(false);
-  const [filter, setFilter] = useState("today"); // all | today | upcoming
-
+  const [filter, setFilter] = useState("all"); // all | today | upcoming
+  const [viewAppt, setViewAppt] = useState(null);
 
   const { token, logout } = useAuth();
   const navigate = useNavigate();
+
+  const avatarInputRef = useRef(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   /* ================= REAL DOCTOR PROFILE (DoctorApplication) ================= */
   const [docLoading, setDocLoading] = useState(true);
@@ -113,38 +118,66 @@ export default function DoctorDashboard() {
   }
 
   /* ================= SAVE PROFILE  ================= */
-  async function saveProfile() {
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/doctor-applications/me`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            fullName: docForm.fullName,
-            phone: docForm.phone,
-            specialization: docForm.specialization,
-            degree: docForm.degree,
-            experience: docForm.experience,
-            consultationFee: docForm.consultationFee,
-            about: docForm.about,
-          }),
-        }
-      );
+ async function saveProfile() {
+  try {
+    const formData = new FormData();
+    formData.append("fullName", docForm.fullName);
+    formData.append("phone", docForm.phone);
+    formData.append("specialization", docForm.specialization);
+    formData.append("degree", docForm.degree);
+    formData.append("experience", docForm.experience);
+    formData.append("consultationFee", docForm.consultationFee);
+    formData.append("about", docForm.about);
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to update profile");
-
-      setDoc(data.doctor ?? data); // supports both response styles
-      setEdit(false);
-      showToast("Profile updated successfully", "success");
-    } catch (e) {
-      showToast(e.message || "Failed to update profile", "error");
+    if (docForm.avatar instanceof File) {
+      formData.append("avatar", docForm.avatar);
     }
+
+    if (removeAvatar) {
+      formData.append("removeAvatar", "true");
+    }
+
+    const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Update failed");
+    }
+
+    // backend returns doctor object
+    const updatedDoctor = await res.json();
+
+    // SET BOTH STATES FROM BACKEND RESPONSE
+    setDoc(updatedDoctor);
+    setDocForm({
+      fullName: updatedDoctor.fullName || "",
+      email: updatedDoctor.email || "",
+      phone: updatedDoctor.phone || "",
+      specialization: updatedDoctor.specialization || "",
+      degree: updatedDoctor.degree || "",
+      experience: updatedDoctor.experience || "",
+      consultationFee: updatedDoctor.consultationFee || "",
+      about: updatedDoctor.about || "",
+      gender: updatedDoctor.gender || "",
+      avatar: updatedDoctor.avatar || "",
+    });
+
+    setRemoveAvatar(false);
+    setEdit(false);
+    showToast("Profile updated successfully");
+  } catch (e) {
+    showToast(e.message || "Failed to update profile", "error");
   }
+}
+
+
+
 
 
   /* ================= UPDATE APPOINTMENT STATUS ================= */
@@ -227,17 +260,47 @@ export default function DoctorDashboard() {
                         <p className="text-sm text-slate-600">Manage your profile & appointments</p>
                       </div>
 
-                      {docForm.avatar ? (
-                        <img
-                          src={docForm.avatar}
-                          alt="doctor"
-                          className="h-20 w-20 rounded-full object-cover ring-2 ring-blue-200"
-                        />
-                      ) : (
-                        <div className="grid h-20 w-20 place-items-center rounded-full bg-blue-100 text-xl font-bold text-blue-700 ring-2 ring-blue-200">
-                          {initials}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-4">
+                        {docForm.avatar && typeof docForm.avatar === "string" ? (
+                          <img
+                            src={docForm.avatar}
+                            className="h-20 w-20 rounded-full object-cover ring-2 ring-blue-200"
+                          />
+                        ) : (
+                          <div className="grid h-20 w-20 place-items-center rounded-full bg-blue-100 text-xl font-bold text-blue-700 ring-2 ring-blue-200">
+                            Dr.{initials}
+                          </div>
+                        )}
+
+                        {edit && (
+                          <div className="flex flex-col gap-2">
+                            <input
+                              ref={avatarInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                setDocForm({ ...docForm, avatar: e.target.files[0] });
+                                setRemoveAvatar(false);
+                              }}
+                              className="text-sm"
+                            />
+
+                            {doc.avatar && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDocForm({ ...docForm, avatar: "" });
+                                  setRemoveAvatar(true);
+                                }}
+                                className="text-xs font-semibold text-rose-600 hover:underline"
+                              >
+                                Remove avatar
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -263,28 +326,6 @@ export default function DoctorDashboard() {
                         onChange={(v) => setDocForm({ ...docForm, about: v })}
                       />
 
-                      {/* Unavailable Slots */}
-                      <div className="md:col-span-2">
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Unavailable Time Slots
-                        </label>
-
-                        {doc?.unavailableSlots?.length === 0 ? (
-                          <p className="text-sm text-slate-500">No unavailable slots</p>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {doc.unavailableSlots.map((slot, i) => (
-                              <span
-                                key={i}
-                                className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 border border-rose-200"
-                              >
-                                {new Date(slot.date).toLocaleDateString()} • {slot.time}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
 
                     </div>
 
@@ -307,6 +348,7 @@ export default function DoctorDashboard() {
                           <button
                             onClick={() => {
                               setEdit(false);
+                              setRemoveAvatar(false);
                               setDocForm({
                                 fullName: doc.fullName || "",
                                 email: doc.email || "",
@@ -332,62 +374,63 @@ export default function DoctorDashboard() {
               </div>
             )}
 
-            <section className="md:col-span-9">
-              {/* ================= APPOINTMENTS ================= */}
-              {tab === "appointments" && (
-                <div className="space-y-4">
-                  {/* FILTER BUTTONS */}
-                  <div className="flex gap-2">
-                    {["all", "today", "upcoming"].map((f) => (
-                      <button
-                        key={f}
-                        type="button"
-                        onClick={() => setFilter(f)}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === f
-                            ? "bg-blue-600 text-white"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                          }`}
-                      >
-                        {f === "all"
-                          ? "All"
-                          : f.charAt(0).toUpperCase() + f.slice(1)}
-                      </button>
+
+            {/* ================= APPOINTMENTS ================= */}
+            {tab === "appointments" && (
+              <div className="space-y-4">
+                {/* FILTER BUTTONS */}
+                <div className="flex gap-2">
+                  {["all", "today", "upcoming"].map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFilter(f)}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === f
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                    >
+                      {f === "all"
+                        ? "All"
+                        : f.charAt(0).toUpperCase() + f.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                {/* HEADER */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+                  <h1 className="text-xl font-semibold text-slate-900">
+                    All Appointments
+                  </h1>
+                  <p className="text-sm text-slate-600">
+                    Your upcoming and past appointments
+                  </p>
+                </div>
+
+                {/* CONTENT */}
+                {apptLoading ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-slate-600">
+                    Loading appointments...
+                  </div>
+                ) : filteredAppointments.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
+                    No appointments found.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {filteredAppointments.map((a) => (
+                      <AppointmentCard
+                        key={a._id}
+                        data={a}
+                        onStatus={(s) => setStatus(a._id, s)}
+                        onView={() => setViewAppt(a)}
+                      />
                     ))}
                   </div>
+                )}
+              </div>
+            )}
 
-                  {/* HEADER */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-                    <h1 className="text-xl font-semibold text-slate-900">
-                      All Appointments
-                    </h1>
-                    <p className="text-sm text-slate-600">
-                      Your upcoming and past appointments
-                    </p>
-                  </div>
-
-                  {/* CONTENT */}
-                  {apptLoading ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-slate-600">
-                      Loading appointments...
-                    </div>
-                  ) : filteredAppointments.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
-                      No appointments found.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {filteredAppointments.map((a) => (
-                        <AppointmentCard
-                          key={a._id}
-                          data={a}
-                          onStatus={(s) => setStatus(a._id, s)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
 
 
             {/* Reset Password (UI-only kept) */}
@@ -412,6 +455,14 @@ export default function DoctorDashboard() {
           </section>
         </div>
       </div>
+      {/* ================= APPOINTMENT DETAILS MODAL ================= */}
+      {viewAppt && (
+        <AppointmentDetailsModal
+          appointment={viewAppt}
+          token={token}
+          onClose={() => setViewAppt(null)}
+        />
+      )}
     </main>
   );
 }
@@ -503,7 +554,7 @@ function ClockIcon() {
   );
 }
 
-function AppointmentCard({ data, onStatus }) {
+function AppointmentCard({ data, onStatus, onView }) {
   // Appointment schema:
   // patientId (populated User), doctorApplicationId (DoctorApplication), date, time, status
   const patient = data.patientId; // expects populate("patientId","name email phone")
@@ -544,7 +595,6 @@ function AppointmentCard({ data, onStatus }) {
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="Pending">Pending</option>
-              <option value="Booked">Booked</option>
               <option value="Confirmed">Confirmed</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
@@ -552,6 +602,7 @@ function AppointmentCard({ data, onStatus }) {
 
             <button
               type="button"
+              onClick={onView}
               className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               View Details
@@ -578,3 +629,7 @@ function Toast({ toast }) {
     </div>
   );
 }
+
+
+
+

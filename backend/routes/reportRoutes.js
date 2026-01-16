@@ -36,8 +36,8 @@ router.post(
 
       const report = await Report.create({
         patientId: req.user.id || req.id,
-        appointmentId: appointmentId || null,
-        title,
+        appointmentId: req.body.appointmentId || null,
+        title: req.body.title,
         fileUrl: req.file.path,
         fileType: req.file.mimetype,
       });
@@ -60,6 +60,15 @@ router.get("/my", auth, async (req, res) => {
   } catch {
     res.status(500).json({ message: "Failed to fetch reports" });
   }
+});
+
+/* ================= FIND REPORT FOR EACH APPOINTMENT ================= */
+router.get("/appointment/:id", auth, async (req, res) => {
+  const reports = await Report.find({
+    appointmentId: req.params.id,
+  }).sort({ createdAt: -1 });
+
+  res.json(reports);
 });
 
 export default router;

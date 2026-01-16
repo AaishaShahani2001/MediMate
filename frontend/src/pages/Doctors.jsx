@@ -6,7 +6,6 @@ import { API_BASE } from "../context/AuthContext";
 
 /* ================= STATIC CATEGORIES ================= */
 const CATEGORIES = [
-  "All",
   "General Physician",
   "Cardiology",
   "Dermatology",
@@ -39,6 +38,7 @@ export default function Doctors() {
           category: d.specialization,
           years: Number(d.experience),
           about: d.about || "No description provided.",
+          avatar: d.avatar || "",
         }));
 
         setDoctors(mapped);
