@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import Appointment from "../models/Appointment.js";
 import DoctorApplication from "../models/DoctorApplication.js";
 import { auth } from "../middleware/auth.js";
@@ -188,6 +189,29 @@ router.get(
   }
 );
 
+/* ================= GET BOOKED SLOTS ================= */
+router.get(
+  "/doctor/:doctorApplicationId",
+  auth,
+  async (req, res) => {
+    try {
+      const { doctorApplicationId } = req.params;
 
+      console.log("doctorApplicationId:", doctorApplicationId);
+
+      const appointments = await Appointment.find({
+        doctorApplicationId: new mongoose.Types.ObjectId(doctorApplicationId),
+        status: { $in: ["Pending", "Confirmed"] },
+      }).select("date time status");
+
+      console.log("appointments found:", appointments);
+
+      res.json(appointments);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch slots" });
+    }
+  }
+);
 
 export default router;
