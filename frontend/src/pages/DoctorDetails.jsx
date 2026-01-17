@@ -166,7 +166,10 @@ export default function DoctorDetails() {
               <h1 className="text-2xl font-semibold text-slate-900">
                 Dr.{doctor.fullName}
               </h1>
-              <p className="text-slate-600">
+              <p className="mt-1 text-sm text-slate-800">
+                🏥 {doctor.workplace}
+              </p>
+              <p className="text-slate-700">
                 {doctor.experience}+ years experience
               </p>
             </div>
@@ -189,11 +192,11 @@ export default function DoctorDetails() {
 
               <div className="mt-6 rounded-xl bg-linear-to-tr from-blue-100 to-indigo-100 p-4 text-sm text-slate-700">
                 <div>
-                  <b>Consultation Fee:</b>{" "}
-                  {doctor.consultationFee || "—"}
+                  <b>Degree:</b> {doctor.degree || "—"}
                 </div>
                 <div>
-                  <b>Degree:</b> {doctor.degree || "—"}
+                  <b>Consultation Fee:</b>{" "}
+                  {doctor.consultationFee || "—"}
                 </div>
               </div>
             </div>
@@ -217,8 +220,8 @@ export default function DoctorDetails() {
                       key={d.key}
                       onClick={() => setSelectedDay(d.key)}
                       className={`rounded-lg border px-2 py-2 text-sm ${selectedDay === d.key
-                          ? "bg-blue-600 text-white"
-                          : "bg-white text-slate-700 hover:text-blue-700"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-slate-700 hover:text-blue-700"
                         }`}
                     >
                       {d.label}
@@ -238,8 +241,8 @@ export default function DoctorDetails() {
                       key={s}
                       onClick={() => setSelectedSlot(s)}
                       className={`rounded-lg border px-2 py-2 text-sm ${selectedSlot === s
-                          ? "bg-blue-600 text-white"
-                          : "bg-white text-slate-700 hover:text-blue-700"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-slate-700 hover:text-blue-700"
                         }`}
                     >
                       {s}

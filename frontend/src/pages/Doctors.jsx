@@ -36,6 +36,7 @@ export default function Doctors() {
           id: d._id,
           name: d.fullName,
           category: d.specialization,
+          workplace: d.workplace || "",
           years: Number(d.experience),
           about: d.about || "No description provided.",
           avatar: d.avatar || "",

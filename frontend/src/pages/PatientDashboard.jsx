@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
 import AIHealthAssistant from "../components/AIHealthAssistant";
+import  socket  from "../socket";
+
 
 
 export default function PatientDashboard() {
@@ -35,6 +37,33 @@ export default function PatientDashboard() {
   const [editAppt, setEditAppt] = useState(null);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [toast, setToast] = useState(null);
+
+  /* ================= MESSAGES STATE ================= */
+  const [messages, setMessages] = useState([]);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [typing, setTyping] = useState(false);
+
+  // Listen for admin replies
+  useEffect(() => {
+    if (tab !== "msg") return;
+
+    socket.on("admin-reply", (msg) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === msg._id ? msg : m))
+      );
+    });
+
+    socket.on("typing", () => setTyping(true));
+    socket.on("stopTyping", () => setTyping(false));
+
+    return () => {
+      socket.off("admin-reply");
+      socket.off("typing");
+      socket.off("stopTyping");
+    };
+  }, [tab]);
+
+
 
   /* ================= FETCH PROFILE ================= */
   useEffect(() => {
@@ -70,6 +99,33 @@ export default function PatientDashboard() {
 
     loadProfile();
   }, [token, logout, navigate]);
+
+  /* ================= FETCH MESSAGES ================= */
+  useEffect(() => {
+    if (tab !== "msg") return;
+
+    async function fetchMessages() {
+      setMsgLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/messages/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Failed to load messages");
+
+        const data = await res.json();
+        setMessages(data);
+      } catch (err) {
+        console.error(err.message);
+      } finally {
+        setMsgLoading(false);
+      }
+    }
+
+    fetchMessages();
+  }, [tab, token]);
+
+
 
   /* ================= FETCH APPOINTMENTS ================= */
   useEffect(() => {
@@ -246,6 +302,7 @@ export default function PatientDashboard() {
                 <SideItem icon="📅" label="My Appointments" active={tab === "appointments"} onClick={() => setTab("appointments")} />
                 <SideItem icon="📤" label="Upload Report" active={tab === "upload"} onClick={() => setTab("upload")} />
                 <SideItem icon="🤖" label="AI Health Assistant" active={tab === "ai"} onClick={() => setTab("ai")} />
+                <SideItem icon="✉️" label="Messages" active={tab === "msg"} onClick={() => setTab("msg")} />
 
               </nav>
 
@@ -403,6 +460,60 @@ export default function PatientDashboard() {
             {tab === "ai" && (
               <AIHealthAssistant token={token} />
             )}
+
+            {/* ================= MESSAGES ================= */}
+            {tab === "msg" && (
+              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <h1 className="text-xl font-semibold mb-4">My Messages</h1>
+
+                {msgLoading ? (
+                  <p className="text-slate-500">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center text-slate-500">
+                    You haven’t sent any messages yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((m) => (
+                      <div
+                        key={m._id}
+                        className="rounded-xl border p-4"
+                      >
+                        {/* SENT MESSAGE */}
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold text-slate-900">
+                            You
+                          </p>
+                          <span className="text-xs text-slate-400">
+                            {new Date(m.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 text-sm text-slate-700">
+                          {m.message}
+                        </p>
+
+                        {/* ADMIN REPLY */}
+                        {m.reply && (
+                          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm">
+                            <b>Admin reply:</b>
+                            <p className="mt-1">{m.reply}</p>
+                          </div>
+                        )}
+
+                        {m.reply && (
+                          <span className="text-xs text-emerald-600 mt-1 block">
+                            ✔ Seen by admin
+                          </span>
+                        )}
+
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
 
 
 
