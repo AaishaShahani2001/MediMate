@@ -55,7 +55,6 @@ router.post(
         degree: req.body.degree,
         experience: req.body.experience,
         consultationFee: req.body.consultationFee,
-        workplace: req.body.workplace,
         about: req.body.about,
 
         nic: {
@@ -103,13 +102,6 @@ router.patch("/:id/status", auth, adminOnly, async (req, res) => {
   const app = await DoctorApplication.findById(req.params.id);
   if (!app) return res.status(404).json({ message: "Not found" });
 
-  // 🔐 LOCK STATUS
-  if (app.status !== "Pending") {
-    return res.status(400).json({
-      message: "Status already finalized and cannot be changed",
-    });
-  }
-
   app.status = status;
   await app.save();
 
@@ -128,7 +120,7 @@ router.get("/public", async (req, res) => {
       status: "Approved",
     }).sort({ createdAt: -1 })
     .select(
-        "fullName specialization experience about avatar workplace"
+        "fullName specialization experience about avatar"
       );
 
     res.json(doctors);
@@ -144,7 +136,7 @@ router.get("/public/:id", async (req, res) => {
       _id: req.params.id,
       status: "Approved",
     }).select(
-      "fullName specialization degree experience consultationFee about avatar workplace"
+      "fullName specialization degree experience consultationFee about avatar"
     );
 
     if (!doctor) {
@@ -161,7 +153,7 @@ router.get("/public/:id", async (req, res) => {
 router.get("/me", auth, async (req, res) => {
   try {
     const doctor = await DoctorApplication.findOne({
-      userId: req.user.id,
+      userId: req.user._id,
     });
 
     if (!doctor) {
@@ -186,7 +178,7 @@ router.get("/me", auth, async (req, res) => {
 /* ================= DOCTOR: MY PROFILE ================= */
 router.get("/me", auth, doctorOnly, async (req, res) => {
   const doctor = await DoctorApplication.findOne({
-    userId: req.user.id,
+    userId: req.user._id,
     status: "Approved",
   });
 
@@ -209,7 +201,7 @@ router.patch(
   async (req, res) => {
     try {
       const doctor = await DoctorApplication.findOne({
-        userId: req.user.id,
+        userId: req.user._id,
         status: { $in: ["Approved", "approved"] },
       });
 
@@ -227,7 +219,6 @@ router.patch(
       doctor.experience = req.body.experience ?? doctor.experience;
       doctor.consultationFee = req.body.consultationFee ?? doctor.consultationFee;
       doctor.about = req.body.about ?? doctor.about;
-      doctor.workplace = req.body.workplace;
 
       // ---------- REMOVE AVATAR ----------
       if (req.body.removeAvatar === "true") {

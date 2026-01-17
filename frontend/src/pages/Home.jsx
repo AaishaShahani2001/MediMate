@@ -34,38 +34,38 @@ export default function Home() {
   async function submitContact(e) {
     e.preventDefault();
 
-    if (!name || !email || !message) {
-      showToast("Please fill all required fields", "error");
+    if (!token) {
+      showToast("Please login to contact admin", "error");
+      return;
+    }
+
+    if (!message.trim()) {
+      showToast("Message cannot be empty", "error");
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/messages/contact`, {
+      const res = await fetch(`${API_BASE}/api/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name,
-          email,
-          message,
-        }),
-      });
-      socket.emit("send-message", {
-        toRole: "admin",
+        body: JSON.stringify({ message }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to send message");
+      if (!res.ok) throw new Error(data.message);
+
+      // optional real-time notify admin
+      socket.emit("send-message", { toRole: "admin" });
 
       showToast("Message sent successfully 💙");
-      setName("");
-      setEmail("");
       setMessage("");
     } catch (err) {
-      showToast("Failed to send message", "error");
+      showToast(err.message || "Failed to send message", "error");
     } finally {
       setLoading(false);
     }
@@ -313,47 +313,70 @@ export default function Home() {
                 Send us a message and our team will get back to you shortly.
               </p>
 
-              <form onSubmit={submitContact} className="mt-6 space-y-4">
+              <form
+                onSubmit={(e) => {
+                  if (!token) {
+                    e.preventDefault();
+                    showToast("Please login to contact admin", "error");
+                    return;
+                  }
+                  submitContact(e);
+                }}
+                className="mt-6 space-y-4"
+              >
                 <input
                   type="text"
                   placeholder="Your name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
-        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  disabled
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-sm
+      cursor-not-allowed"
                 />
 
                 <input
                   type="email"
                   placeholder="Your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
-        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  disabled
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-sm
+      cursor-not-allowed"
                 />
 
                 <textarea
                   rows={4}
-                  placeholder="Your message"
+                  placeholder={
+                    token
+                      ? "Your message"
+                      : "Login required to send a message"
+                  }
                   value={message}
-                  onChange={(e) => {
-                    setMessage(e.target.value);
-                    socket.emit("typing", { toRole: "admin" });
-                  }}
-                  onBlur={() => socket.emit("stopTyping", { toRole: "admin" })}
+                  disabled={!token}
+                  onChange={(e) => setMessage(e.target.value)}
                   className="w-full resize-none rounded-md border border-slate-300 px-4 py-3 text-sm
-        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+      focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200
+      disabled:bg-slate-100 disabled:cursor-not-allowed"
                 />
 
-                <button
-                  disabled={loading}
-                  className="w-full rounded-md bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white
+                {!token ? (
+                  <Link
+                    to="/login"
+                    className="block w-full rounded-md bg-blue-600 px-6 py-2.5 text-center
+        text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    Login to Send Message
+                  </Link>
+                ) : (
+                  <button
+                    disabled={loading}
+                    className="w-full rounded-md bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white
         hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Sending..." : "Send Message"}
-                </button>
+                  >
+                    {loading ? "Sending..." : "Send Message"}
+                  </button>
+                )}
               </form>
             </div>
+
 
 
 
@@ -414,13 +437,13 @@ export default function Home() {
       </section>
 
       {toast && (
-      <div
-        className={`fixed bottom-6 right-6 z-50 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-lg
+        <div
+          className={`fixed bottom-6 right-6 z-50 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-lg
           ${toast.type === "error" ? "bg-rose-600" : "bg-emerald-600"}`}
-      >
-        {toast.message}
-      </div>
-    )}
+        >
+          {toast.message}
+        </div>
+      )}
 
     </main>
   );

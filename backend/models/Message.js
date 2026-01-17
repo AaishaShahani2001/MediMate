@@ -2,29 +2,15 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-
-    name: String,
-    email: String,
-
-     // Logged-in users only
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: function () {
-        return !this.name; // required only if NOT contact form
-      },
-    },
-
-    
-
-    senderRole: {
-      type: String,
-      enum: ["patient", "doctor", "admin"],
+      required: true,
     },
 
     subject: {
       type: String,
-      default: "Contact Message",
+      default: "Support Message",
     },
 
     message: {
@@ -40,11 +26,11 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    readByPatient: {
-      type: Boolean,
-      default: false,
-    },
 
+    readByUser: {
+      type: Boolean,
+      default: true, // user already read their own message
+    },
 
     repliedAt: Date,
   },

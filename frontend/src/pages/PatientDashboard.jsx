@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
 import AIHealthAssistant from "../components/AIHealthAssistant";
-import  socket  from "../socket";
+import socket from "../socket";
 
 
 
@@ -116,7 +116,7 @@ export default function PatientDashboard() {
         const data = await res.json();
         setMessages(data);
       } catch (err) {
-        console.error(err.message);
+        console.error(err);
       } finally {
         setMsgLoading(false);
       }
@@ -124,6 +124,7 @@ export default function PatientDashboard() {
 
     fetchMessages();
   }, [tab, token]);
+
 
 
 
@@ -481,9 +482,7 @@ export default function PatientDashboard() {
                       >
                         {/* SENT MESSAGE */}
                         <div className="flex justify-between items-start">
-                          <p className="font-semibold text-slate-900">
-                            You
-                          </p>
+                          <p className="font-semibold text-slate-900">You</p>
                           <span className="text-xs text-slate-400">
                             {new Date(m.createdAt).toLocaleString()}
                           </span>
@@ -493,21 +492,32 @@ export default function PatientDashboard() {
                           {m.message}
                         </p>
 
+                        {/* MESSAGE STATUS */}
+                        {!m.readByAdmin ? (
+                          <span className="mt-2 block text-xs text-slate-400">
+                            ⏳ Sent
+                          </span>
+                        ) : (
+                          <span className="mt-2 block text-xs text-emerald-600">
+                            ✔ Seen by admin
+                          </span>
+                        )}
+
                         {/* ADMIN REPLY */}
                         {m.reply && (
                           <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm">
                             <b>Admin reply:</b>
                             <p className="mt-1">{m.reply}</p>
+
+                            {!m.readByUser && (
+                              <span className="mt-1 block text-xs text-blue-600 font-semibold">
+                                🔔 New reply
+                              </span>
+                            )}
                           </div>
                         )}
-
-                        {m.reply && (
-                          <span className="text-xs text-emerald-600 mt-1 block">
-                            ✔ Seen by admin
-                          </span>
-                        )}
-
                       </div>
+
                     ))}
                   </div>
                 )}

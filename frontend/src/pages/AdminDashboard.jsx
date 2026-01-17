@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   const [selectedDoc, setSelectedDoc] = useState(null);
 
   // Messages
-  const [messages, setMessages] = useState([]);
+  const [adminMessages, setAdminMessages] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [msgLoading, setMsgLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
     if (tab !== "messages") return;
 
     socket.on("new-message", (msg) => {
-      setMessages((prev) => [msg, ...prev]);
+      setAdminMessages((prev) => [msg, ...prev]);
     });
 
     socket.on("typing", ({ from }) => {
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
-        setMessages(data);
+        setAdminMessages(data);
       } catch (err) {
         console.error(err.message);
       } finally {
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
       body: JSON.stringify({ reply }),
     });
 
-    setMessages((list) =>
+    setAdminMessages((list) =>
       list.map((m) =>
         m._id === id ? { ...m, reply, read: true } : m
       )
@@ -267,7 +267,7 @@ export default function AdminDashboard() {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    setMessages((list) => list.filter((m) => m._id !== id));
+    setAdminMessages((list) => list.filter((m) => m._id !== id));
   }
 
 
@@ -452,11 +452,11 @@ export default function AdminDashboard() {
 
                 {msgLoading ? (
                   <p className="px-6 py-6 text-slate-500">Loading messages...</p>
-                ) : messages.length === 0 ? (
+                ) : adminMessages.length === 0 ? (
                   <p className="px-6 py-6 text-slate-500">No messages yet.</p>
                 ) : (
                   <div className="divide-y mt-4">
-                    {messages.map((m) => (
+                    {adminMessages.map((m) => (
                       <div key={m._id} className="px-6 py-5">
                         <div className="flex justify-between items-start">
                           <div>

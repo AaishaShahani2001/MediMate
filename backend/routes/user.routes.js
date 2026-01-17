@@ -5,22 +5,16 @@ import uploadAvatar from "../middleware/uploadAvatar.js";
 
 const router = express.Router();
 
-/**
- * GET /api/users/me
- * Get logged-in user's profile
- */
+/* ================= GET LOGGED-IN USER ================= */
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-passwordHash");
-
+    const user = await User.findById(req.user._id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
     res.json(user);
   } catch (err) {
-    console.error("GET /users/me error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Failed to load profile" });
   }
 });
 

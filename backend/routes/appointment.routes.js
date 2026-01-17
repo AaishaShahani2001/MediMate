@@ -88,7 +88,7 @@ router.get("/my", auth, async (req, res) => {
 /* ================= DOCTOR: MY APPOINTMENTS ================= */
 router.get("/doctor/my", auth, doctorOnly, async (req, res) => {
   const doctor = await DoctorApplication.findOne({
-    userId: req.user.id,
+    userId: req.user._id,
     status: "Approved",
   });
 
@@ -110,7 +110,7 @@ router.patch("/:id/status", auth, doctorOnly, async (req, res) => {
   const { status } = req.body;
 
   const doctor = await DoctorApplication.findOne({
-    userId: req.user.id,
+    userId: req.user._id,
     status: "Approved",
   });
 
@@ -173,7 +173,7 @@ router.get(
   async (req, res) => {
     try {
       const doctor = await DoctorApplication.findOne({
-        userId: req.user.id,
+        userId: req.user._id,
       });
 
       const history = await Appointment.find({
@@ -197,14 +197,14 @@ router.get(
     try {
       const { doctorApplicationId } = req.params;
 
-      console.log("doctorApplicationId:", doctorApplicationId);
+      //console.log("doctorApplicationId:", doctorApplicationId); DEBUG
 
       const appointments = await Appointment.find({
         doctorApplicationId: new mongoose.Types.ObjectId(doctorApplicationId),
         status: { $in: ["Pending", "Confirmed"] },
       }).select("date time status");
 
-      console.log("appointments found:", appointments);
+      //console.log("appointments found:", appointments); DEBUG
 
       res.json(appointments);
     } catch (err) {
