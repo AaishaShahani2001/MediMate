@@ -466,6 +466,7 @@ export default function DoctorDashboard() {
           </section>
         </div>
       </div>
+      
       {/* ================= APPOINTMENT DETAILS MODAL ================= */}
       {viewAppt && (
         <AppointmentDetailsModal
