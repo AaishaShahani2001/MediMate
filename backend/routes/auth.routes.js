@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
+import uploadAvatar from "../middleware/uploadAvatar.js";
 
 const router = express.Router();
 
@@ -10,9 +11,12 @@ const router = express.Router();
  * Body: { name, email, password, gender, phone, blood }
  * Creates a PATIENT by default
  */
-router.post("/signup", async (req, res) => {
+router.post("/signup", 
+  uploadAvatar.single("avatar"),
+  async (req, res) => {
   try {
     const { name, email, password, gender, phone, blood } = req.body;
+    const avatar = req.file ? req.file.path : "";
 
     if (!name || !email || !password)
       return res.status(400).json({ message: "name, email, password are required" });
@@ -29,12 +33,13 @@ router.post("/signup", async (req, res) => {
       gender: gender || "Male",
       phone: phone || "",
       blood: blood || "O+",
+      avatar, // optional
     });
 
     const token = generateToken(user, process.env.JWT_SECRET, process.env.JWT_EXPIRES_IN);
     return res.status(201).json({
       token,
-      user: { id: user._id, name: user.name, role: user.role, email: user.email }
+      user: { id: user._id, name: user.name, role: user.role, email: user.email, avatar: user.avatar, }
     });
   } catch (err) {
     console.error("Signup error:", err);

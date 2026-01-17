@@ -18,6 +18,7 @@ export default function BecomeDoctorModal({ onClose }) {
     degree: "",
     experience: "",
     consultationFee: "",
+    workplace: "",
     about: "",
   });
 
@@ -33,6 +34,7 @@ export default function BecomeDoctorModal({ onClose }) {
     if (!form.degree) e.degree = "Degree is required";
     if (!form.experience) e.experience = "Experience is required";
     if (!form.consultationFee) e.consultationFee = "Fee is required";
+    if (!form.workplace) e.workplace = "Hospital / clinic is required";
     if (!nicFile) e.nic = "NIC is required";
     if (certFiles.length === 0) e.cert = "At least one certificate is required";
 
@@ -87,86 +89,140 @@ export default function BecomeDoctorModal({ onClose }) {
         {/* Form */}
         <form
           onSubmit={onSubmit}
-          className="grid gap-6 p-4 sm:p-6 md:grid-cols-2"
+          className="grid grid-cols-1 gap-8 p-5 sm:p-6 md:grid-cols-12"
         >
-          {/* Basic info */}
-          <Section title="Basic Information">
-            <Input label="Full Name" value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} error={errors.fullName} />
-            <Input label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} error={errors.email} />
-            <Input label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} />
-          </Section>
-
-          {/* Professional info */}
-          <Section title="Professional Details">
-            <Select
-              label="Specialization"
-              value={form.specialization}
-              onChange={(v) => setForm({ ...form, specialization: v })}
-              options={[
-                "General Physician",
-                "Cardiology",
-                "Dermatology",
-                "Pediatrics",
-                "Dental",
-                "Neurology",
-              ]}
-              error={errors.specialization}
-            />
-            <Input label="Degree" value={form.degree} onChange={(v) => setForm({ ...form, degree: v })} error={errors.degree} />
-            <Input label="Experience (years)" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} error={errors.experience} />
-            <Input label="Consultation Fee" value={form.consultationFee} onChange={(v) => setForm({ ...form, consultationFee: v })} error={errors.consultationFee} />
-          </Section>
-
-          {/* About */}
-          <div className="md:col-span-2">
-            <TextArea
-              label="About You"
-              value={form.about}
-              onChange={(v) => setForm({ ...form, about: v })}
-              placeholder="Brief description about your experience"
-            />
+          {/* ================= BASIC INFO ================= */}
+          <div className="md:col-span-6 space-y-4">
+            <Section title="Basic Information">
+              <Input
+                label="Full Name"
+                value={form.fullName}
+                onChange={(v) => setForm({ ...form, fullName: v })}
+                error={errors.fullName}
+              />
+              <Input
+                label="Email"
+                value={form.email}
+                onChange={(v) => setForm({ ...form, email: v })}
+                error={errors.email}
+              />
+              <Input
+                label="Phone"
+                value={form.phone}
+                onChange={(v) => setForm({ ...form, phone: v })}
+                error={errors.phone}
+              />
+            </Section>
           </div>
 
-          {/* Uploads */}
-          <UploadBox
-            label="NIC Upload (Required)"
-            accept=".pdf,image/*"
-            onChange={(f) => setNicFile(f)}
-            error={errors.nic}
-          />
+          {/* ================= PROFESSIONAL INFO ================= */}
+          <div className="md:col-span-6 space-y-4">
+            <Section title="Professional Details">
+              <Select
+                label="Specialization"
+                value={form.specialization}
+                onChange={(v) => setForm({ ...form, specialization: v })}
+                options={[
+                  "General Physician",
+                  "Cardiology",
+                  "Dermatology",
+                  "Pediatrics",
+                  "Dental",
+                  "Neurology",
+                ]}
+                error={errors.specialization}
+              />
 
-          <UploadBox
-            label="Certifications / License"
-            accept=".pdf,image/*"
-            multiple
-            onChange={(files) => setCertFiles(files)}
-            error={errors.cert}
-          />
+              <Input
+                label="Degree"
+                value={form.degree}
+                onChange={(v) => setForm({ ...form, degree: v })}
+                error={errors.degree}
+              />
 
-          {/* Message */}
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Experience (years)"
+                  value={form.experience}
+                  onChange={(v) => setForm({ ...form, experience: v })}
+                  error={errors.experience}
+                />
+                <Input
+                  label="Consultation Fee"
+                  value={form.consultationFee}
+                  onChange={(v) => setForm({ ...form, consultationFee: v })}
+                  error={errors.consultationFee}
+                />
+              </div>
+
+              <Input
+                label="Hospital / Clinic"
+                value={form.workplace}
+                onChange={(v) => setForm({ ...form, workplace: v })}
+                error={errors.workplace}
+              />
+            </Section>
+          </div>
+
+          {/* ================= ABOUT ================= */}
+          <div className="md:col-span-12">
+            <Section title="About You">
+              <TextArea
+                value={form.about}
+                onChange={(v) => setForm({ ...form, about: v })}
+                placeholder="Brief description about your medical experience, approach to care, and specialties."
+              />
+            </Section>
+          </div>
+
+          {/* ================= DOCUMENT UPLOADS ================= */}
+          <div className="md:col-span-12">
+            <Section title="Verification Documents">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <UploadBox
+                  label="NIC Upload (Required)"
+                  accept=".pdf,image/*"
+                  onChange={(f) => setNicFile(f)}
+                  error={errors.nic}
+                />
+                <UploadBox
+                  label="Certifications / Medical License"
+                  accept=".pdf,image/*"
+                  multiple
+                  onChange={(files) => setCertFiles(files)}
+                  error={errors.cert}
+                />
+              </div>
+            </Section>
+          </div>
+
+          {/* ================= MESSAGE ================= */}
           {msg && (
-            <p className="md:col-span-2 text-center text-sm text-blue-700">
-              {msg}
-            </p>
+            <div className="md:col-span-12">
+              <p className="rounded-lg bg-blue-50 px-4 py-2 text-center text-sm font-medium text-blue-700">
+                {msg}
+              </p>
+            </div>
           )}
 
-          {/* Actions */}
-          <div className="md:col-span-2 flex flex-col-reverse sm:flex-row justify-end gap-3">
+          {/* ================= ACTIONS ================= */}
+          <div className="md:col-span-12 flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto rounded-md border px-4 py-2 text-sm font-medium hover:bg-slate-50"
+              className="rounded-md border border-slate-300 px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
               disabled={submitting}
-              className="w-full sm:w-auto rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              className="rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
             >
               {submitting ? "Submitting…" : "Submit Application"}
             </button>
           </div>
         </form>
+
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
+import uploadAvatar from "../middleware/uploadAvatar.js";
 
 const router = express.Router();
 
@@ -27,41 +28,42 @@ router.get("/me", auth, async (req, res) => {
  * PUT /api/users/me
  * Update logged-in user's profile
  */
-router.put("/me", auth, async (req, res) => {
-  try {
-    const allowedFields = [
-      "name",
-      "phone",
-      "gender",
-      "blood",
-      "dob",
-    ];
+router.put(
+  "/me",
+  auth,
+  uploadAvatar.single("avatar"),
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id);
 
-    const updates = {};
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      // Update fields
+      user.name = req.body.name ?? user.name;
+      user.phone = req.body.phone ?? user.phone;
+      user.gender = req.body.gender ?? user.gender;
+      user.blood = req.body.blood ?? user.blood;
+      user.dob = req.body.dob ?? user.dob;
+
+      //  REMOVE AVATAR
+      if (req.body.removeAvatar === "true") {
+        user.avatar = "";
       }
-    });
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    ).select("-passwordHash");
+      //  UPLOAD NEW AVATAR
+      if (req.file) {
+        user.avatar = req.file.path;
+      }
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      await user.save();
+
+      res.json({ user });
+    } catch (err) {
+      console.error("Update profile error:", err);
+      res.status(500).json({ message: "Profile update failed" });
     }
-
-    res.json({
-      message: "Profile updated successfully",
-      user,
-    });
-  } catch (err) {
-    console.error("PUT /users/me error:", err);
-    res.status(500).json({ message: "Server error" });
   }
-});
+);
+
 
 export default router;

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
+import AIHealthAssistant from "../components/AIHealthAssistant";
+import  socket  from "../socket";
+
+
 
 export default function PatientDashboard() {
   const [tab, setTab] = useState("profile");
@@ -23,6 +27,7 @@ export default function PatientDashboard() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const avatarInputRef = useRef(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   /* ================= APPOINTMENTS STATE ================= */
   const [appointments, setAppointments] = useState([]);
@@ -32,6 +37,33 @@ export default function PatientDashboard() {
   const [editAppt, setEditAppt] = useState(null);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [toast, setToast] = useState(null);
+
+  /* ================= MESSAGES STATE ================= */
+  const [messages, setMessages] = useState([]);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [typing, setTyping] = useState(false);
+
+  // Listen for admin replies
+  useEffect(() => {
+    if (tab !== "msg") return;
+
+    socket.on("admin-reply", (msg) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === msg._id ? msg : m))
+      );
+    });
+
+    socket.on("typing", () => setTyping(true));
+    socket.on("stopTyping", () => setTyping(false));
+
+    return () => {
+      socket.off("admin-reply");
+      socket.off("typing");
+      socket.off("stopTyping");
+    };
+  }, [tab]);
+
+
 
   /* ================= FETCH PROFILE ================= */
   useEffect(() => {
@@ -52,7 +84,7 @@ export default function PatientDashboard() {
           dob: data.dob ? data.dob.slice(0, 10) : "",
           blood: data.blood || "O+",
           gender: data.gender || "Female",
-          avatar: "",
+          avatar: data.avatar || "",
         };
 
         setPatient(mapped);
@@ -68,9 +100,36 @@ export default function PatientDashboard() {
     loadProfile();
   }, [token, logout, navigate]);
 
+  /* ================= FETCH MESSAGES ================= */
+  useEffect(() => {
+    if (tab !== "msg") return;
+
+    async function fetchMessages() {
+      setMsgLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/messages/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Failed to load messages");
+
+        const data = await res.json();
+        setMessages(data);
+      } catch (err) {
+        console.error(err.message);
+      } finally {
+        setMsgLoading(false);
+      }
+    }
+
+    fetchMessages();
+  }, [tab, token]);
+
+
+
   /* ================= FETCH APPOINTMENTS ================= */
   useEffect(() => {
-    if (tab !== "appointments") return;
+    if (tab !== "appointments" && tab !== "upload") return;
 
     async function loadAppointments() {
       setApptLoading(true);
@@ -82,7 +141,17 @@ export default function PatientDashboard() {
         if (!res.ok) throw new Error("Failed to load appointments");
 
         const data = await res.json();
+
+        /* Toast when an appointment is confirmed */
+        data.forEach((a) => {
+          const previous = appointments.find((p) => p._id === a._id);
+          if (previous && previous.status !== "Confirmed" && a.status === "Confirmed") {
+            showToast("Appointment confirmed by doctor");
+          }
+        });
+
         setAppointments(data);
+
       } catch (err) {
         showToast("Failed to load appointments", "error");
       } finally {
@@ -229,9 +298,12 @@ export default function PatientDashboard() {
               <h2 className="mb-4 text-lg font-semibold">Dashboard</h2>
 
               <nav className="flex flex-col gap-1">
-                <SideItem icon="👤" label="My Profile" active={tab==="profile"} onClick={() => setTab("profile")} />
-                <SideItem icon="📅" label="My Appointments" active={tab==="appointments"} onClick={() => setTab("appointments")} />
-                <SideItem icon="📤" label="Upload Report" active={tab==="upload"} onClick={() => setTab("upload")} />
+                <SideItem icon="👤" label="My Profile" active={tab === "profile"} onClick={() => setTab("profile")} />
+                <SideItem icon="📅" label="My Appointments" active={tab === "appointments"} onClick={() => setTab("appointments")} />
+                <SideItem icon="📤" label="Upload Report" active={tab === "upload"} onClick={() => setTab("upload")} />
+                <SideItem icon="🤖" label="AI Health Assistant" active={tab === "ai"} onClick={() => setTab("ai")} />
+                <SideItem icon="✉️" label="Messages" active={tab === "msg"} onClick={() => setTab("msg")} />
+
               </nav>
 
               <button
@@ -249,6 +321,24 @@ export default function PatientDashboard() {
             {/* PROFILE */}
             {tab === "profile" && (
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-4 mb-6">
+                  {patient.avatar ? (
+                    <img
+                      src={patient.avatar}
+                      alt="Profile"
+                      className="h-20 w-20 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-700">
+                      {patient.name?.[0]}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="font-semibold text-slate-900">{patient.name}</p>
+                  </div>
+                </div>
+
                 <h1 className="text-xl font-semibold mb-4">My Profile</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Info label="Full Name" value={patient.name} />
@@ -271,6 +361,46 @@ export default function PatientDashboard() {
             {/* EDIT */}
             {tab === "edit" && (
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <div className="sm:col-span-2 flex items-center gap-4">
+                  {form.avatar && typeof form.avatar === "string" ? (
+                    <img
+                      src={form.avatar}
+                      className="h-16 w-16 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700">
+                      {form.name?.[0]}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        setForm({ ...form, avatar: e.target.files[0] });
+                        setRemoveAvatar(false);
+                      }}
+                      className="text-sm"
+                    />
+
+                    {patient.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, avatar: "" });
+                          setRemoveAvatar(true);
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Remove avatar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+
                 <h1 className="text-xl font-semibold mb-4">Edit Profile</h1>
 
                 <form onSubmit={onSaveProfile} className="grid sm:grid-cols-2 gap-4">
@@ -278,8 +408,8 @@ export default function PatientDashboard() {
                   <Field label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} />
                   <Field label="Date of birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} error={errors.dob} />
 
-                  <Select label="Blood group" value={form.blood} options={["A+","A-","B+","B-","O+","O-","AB+","AB-"]} onChange={(v) => setForm({ ...form, blood: v })} />
-                  <Select label="Gender" value={form.gender} options={["Female","Male","Other","Prefer not to say"]} onChange={(v) => setForm({ ...form, gender: v })} />
+                  <Select label="Blood group" value={form.blood} options={["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]} onChange={(v) => setForm({ ...form, blood: v })} />
+                  <Select label="Gender" value={form.gender} options={["Female", "Male", "Other", "Prefer not to say"]} onChange={(v) => setForm({ ...form, gender: v })} />
 
                   <div className="sm:col-span-2 flex gap-3 mt-2">
                     <button className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold">Save</button>
@@ -303,10 +433,10 @@ export default function PatientDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {appointments.map((a) => (
-                      <AppointmentCard 
-                        key={a._id} 
-                        appt={a} 
-                        onCancel={() => setConfirmCancelId(a._id)} 
+                      <AppointmentCard
+                        key={a._id}
+                        appt={a}
+                        onCancel={() => setConfirmCancelId(a._id)}
                         onEdit={() => setEditAppt({ ...a })}
                       />
                     ))}
@@ -315,26 +445,98 @@ export default function PatientDashboard() {
               </div>
             )}
 
+            {tab === "upload" && (
+              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <h1 className="text-xl font-semibold mb-4">Upload Medical Report</h1>
+
+                <UploadReport
+                  token={token}
+                  appointments={appointments}
+                  onUploaded={() => showToast("Report uploaded successfully")}
+                />
+              </div>
+            )}
+
+            {tab === "ai" && (
+              <AIHealthAssistant token={token} />
+            )}
+
+            {/* ================= MESSAGES ================= */}
+            {tab === "msg" && (
+              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <h1 className="text-xl font-semibold mb-4">My Messages</h1>
+
+                {msgLoading ? (
+                  <p className="text-slate-500">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center text-slate-500">
+                    You haven’t sent any messages yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((m) => (
+                      <div
+                        key={m._id}
+                        className="rounded-xl border p-4"
+                      >
+                        {/* SENT MESSAGE */}
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold text-slate-900">
+                            You
+                          </p>
+                          <span className="text-xs text-slate-400">
+                            {new Date(m.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 text-sm text-slate-700">
+                          {m.message}
+                        </p>
+
+                        {/* ADMIN REPLY */}
+                        {m.reply && (
+                          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm">
+                            <b>Admin reply:</b>
+                            <p className="mt-1">{m.reply}</p>
+                          </div>
+                        )}
+
+                        {m.reply && (
+                          <span className="text-xs text-emerald-600 mt-1 block">
+                            ✔ Seen by admin
+                          </span>
+                        )}
+
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+
+
+
           </section>
         </div>
 
         {/* MODALS */}
-      {editAppt && (
-        <EditAppointmentModal
-          appt={editAppt}
-          setAppt={setEditAppt}
-          onClose={() => setEditAppt(null)}
-          onSave={saveEdit}
-        />
-      )}
+        {editAppt && (
+          <EditAppointmentModal
+            appt={editAppt}
+            setAppt={setEditAppt}
+            onClose={() => setEditAppt(null)}
+            onSave={saveEdit}
+          />
+        )}
 
-      {confirmCancelId && (
-        <ConfirmModal
-          title="Cancel Appointment?"
-          onCancel={() => setConfirmCancelId(null)}
-          onConfirm={confirmCancel}
-        />
-      )}
+        {confirmCancelId && (
+          <ConfirmModal
+            title="Cancel Appointment?"
+            onCancel={() => setConfirmCancelId(null)}
+            onConfirm={confirmCancel}
+          />
+        )}
       </div>
     </main>
   );
@@ -359,7 +561,7 @@ function Info({ label, value }) {
   );
 }
 
-function Field({ label, value, onChange, type="text", error }) {
+function Field({ label, value, onChange, type = "text", error }) {
   return (
     <div>
       <label className="text-sm font-medium">{label}</label>
@@ -382,26 +584,61 @@ function Select({ label, value, options, onChange }) {
 
 function AppointmentCard({ appt, onEdit, onCancel }) {
   const d = appt.doctorApplicationId;
+
+  const statusStyles = {
+    Pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    Confirmed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    Cancelled: "bg-rose-100 text-rose-700 border-rose-200",
+    Completed: "bg-slate-100 text-slate-700 border-slate-200",
+  };
+
   return (
-    <div className="border rounded-xl p-4 flex justify-between">
+    <div className="border rounded-xl p-4 flex justify-between items-center gap-4">
+      {/* LEFT */}
       <div>
-        <div className="font-semibold">{d?.fullName || "Doctor"}</div>
-        <div className="text-sm text-slate-600">{d?.specialization}</div>
-        <div className="text-sm mt-1">
+        <div className="font-semibold text-slate-900">
+          Dr. {d?.fullName || "Doctor"}
+        </div>
+        <div className="text-sm text-slate-600">
+          {d?.specialization}
+        </div>
+
+        <div className="mt-1 text-sm text-slate-700">
           📅 {new Date(appt.date).toLocaleDateString()} · ⏰ {appt.time}
         </div>
+
+        {/* STATUS BADGE */}
+        <span
+          className={`mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[appt.status] ||
+            "bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+        >
+          {appt.status}
+        </span>
       </div>
 
-      {appt.status === "Pending" && (
-        <div className="flex gap-2">
-          <button onClick={onEdit} className="border px-3 py-1 rounded text-xs">
-            Edit
+      {/* ACTIONS */}
+      <div className="flex flex-col gap-2">
+        {/* EDIT – only if NOT confirmed */}
+        {appt.status !== "Confirmed" && appt.status !== "Cancelled" && (
+          <button
+            onClick={onEdit}
+            className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+          >
+            ✏️ Edit
           </button>
-          <button onClick={onCancel} className="bg-rose-600 text-white px-3 py-1 rounded text-xs">
-            Cancel
+        )}
+
+        {/* CANCEL – allowed even if confirmed */}
+        {appt.status !== "Cancelled" && (
+          <button
+            onClick={onCancel}
+            className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"
+          >
+            ❌ Cancel
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -414,15 +651,15 @@ function EditAppointmentModal({ appt, setAppt, onClose, onSave }) {
       <label className="text-sm">Date</label>
       <input
         type="date"
-        value={appt.date.slice(0,10)}
-        onChange={(e)=>setAppt({...appt, date: e.target.value})}
+        value={appt.date.slice(0, 10)}
+        onChange={(e) => setAppt({ ...appt, date: e.target.value })}
         className="w-full border rounded p-2 mb-3"
       />
       <label className="text-sm">Time</label>
       <input
         type="time"
         value={appt.time}
-        onChange={(e)=>setAppt({...appt, time: e.target.value})}
+        onChange={(e) => setAppt({ ...appt, time: e.target.value })}
         className="w-full border rounded p-2"
       />
       <div className="mt-4 flex justify-end gap-2">
@@ -438,8 +675,8 @@ function ConfirmModal({ title, onCancel, onConfirm }) {
     <Modal title={title} onClose={onCancel}>
       <p className="text-sm mb-4">This action cannot be undone.</p>
       <div className="flex justify-end gap-2">
-        <button onClick={onCancel} className="border px-4 py-2 rounded">No</button>
-        <button onClick={onConfirm} className="bg-rose-600 text-white px-4 py-2 rounded">Yes</button>
+        <button onClick={onCancel} className="border px-4 py-2 rounded">No, Keep</button>
+        <button onClick={onConfirm} className="bg-rose-600 text-white px-4 py-2 rounded">Yes, Cancel</button>
       </div>
     </Modal>
   );
@@ -459,10 +696,95 @@ function Modal({ title, children, onClose }) {
 function Toast({ toast }) {
   if (!toast) return null;
   return (
-    <div className={`fixed bottom-6 right-6 px-4 py-2 rounded text-white ${
-      toast.type === "error" ? "bg-rose-600" : "bg-emerald-600"
-    }`}>
+    <div className={`fixed bottom-6 right-6 px-4 py-2 rounded text-white ${toast.type === "error" ? "bg-rose-600" : "bg-emerald-600"
+      }`}>
       {toast.message}
     </div>
   );
 }
+
+function UploadReport({ token, onUploaded, appointments = [] }) {
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState(null);
+  const [appointmentId, setAppointmentId] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleUpload(e) {
+    e.preventDefault();
+    if (!title || !file) return alert("Title & file required");
+
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("file", file);
+
+    if (appointmentId) {
+      formData.append("appointmentId", appointmentId);
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/reports`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error();
+
+      setTitle("");
+      setFile(null);
+      setAppointmentId("");
+      onUploaded();
+    } catch {
+      alert("Upload failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleUpload} className="space-y-4 max-w-md">
+      <Field label="Report Title" value={title} onChange={setTitle} />
+
+      {/* SELECT APPOINTMENT */}
+      <div>
+        <label className="text-sm font-medium">
+          Link to Appointment (optional)
+        </label>
+        <select
+          value={appointmentId}
+          onChange={(e) => setAppointmentId(e.target.value)}
+          className="w-full border rounded-md px-3 py-2"
+        >
+          <option value="">General Report (No appointment)</option>
+          {appointments.map((a) => (
+            <option key={a._id} value={a._id}>
+              {new Date(a.date).toLocaleDateString()} – {a.time} – Dr. {a.doctorApplicationId?.fullName} – {a.doctorApplicationId?.specialization}
+            </option>
+          ))}
+
+        </select>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Select File</label>
+        <input
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) => setFile(e.target.files[0])}
+          className="w-full border rounded-md px-3 py-2"
+        />
+      </div>
+
+      <button
+        disabled={loading}
+        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+      >
+        {loading ? "Uploading..." : "Upload Report"}
+      </button>
+    </form>
+  );
+}
+

@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema(
     },
 
     dob: { type: Date },
+    avatar: {
+    type: String, // image URL
+    default: "",  // optional
+  },
   },
   { timestamps: true }
 );

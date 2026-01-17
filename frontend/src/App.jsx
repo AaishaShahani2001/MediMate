@@ -11,6 +11,8 @@ import DoctorDashboard from "./pages/DoctorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLogin from "./pages/AdminLogin";
 import ProtectedRoute from "./components/ProtectedRoute";
+import About from "./pages/About";
+import Contact from "./pages/ContactUs";
 
 function Chrome({ children }) {
   const { pathname } = useLocation();
@@ -31,6 +33,8 @@ export default function App() {
         <Routes>
           {/* public */}
           <Route index element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact/>} />
           <Route path="/doctors" element={<Doctors />} />
           <Route path="/doctor/:id" element={<DoctorDetails />} />
           <Route path="/login" element={<Login />} />

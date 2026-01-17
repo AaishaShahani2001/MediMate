@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { API_BASE, useAuth } from "../context/AuthContext";
 
-const BLOOD_GROUPS = ["A+","A-","B+","B-","O+","O-","AB+","AB-"];
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
 export default function Signup() {
   const nav = useNavigate();
@@ -12,6 +12,7 @@ export default function Signup() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [avatar, setAvatar] = useState(null);
 
   const [form, setForm] = useState({
     email: "",
@@ -39,17 +40,21 @@ export default function Signup() {
     if (!validate()) return;
     setErr(""); setLoading(true);
     try {
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("email", form.email);
+      formData.append("password", form.password);
+      formData.append("gender", form.gender);
+      formData.append("phone", form.phone);
+      formData.append("blood", form.blood);
+
+      if (avatar) {
+        formData.append("avatar", avatar); // optional
+      }
+
       const res = await fetch(`${API_BASE}/api/auth/signup`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-          gender: form.gender,
-          phone: form.phone,
-          blood: form.blood,
-        }),
+        body: formData,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Signup failed");
@@ -75,7 +80,7 @@ export default function Signup() {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
               ${errors.email ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                              : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
           />
           {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
         </div>
@@ -88,10 +93,29 @@ export default function Signup() {
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
               ${errors.name ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                             : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
           />
           {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
         </div>
+
+        {/* Optional Avatar */}
+        <div>
+          <label className="block mb-1 text-sm font-medium text-slate-700">
+            Profile Photo (Optional)
+          </label>
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setAvatar(e.target.files[0])}
+            className="w-full text-sm text-slate-600
+               file:mr-4 file:rounded-md file:border-0
+               file:bg-blue-50 file:px-4 file:py-2
+               file:text-sm file:font-semibold file:text-blue-700
+               hover:file:bg-blue-100"
+          />
+        </div>
+
 
         {/* Password with Show */}
         <div>
@@ -103,7 +127,7 @@ export default function Signup() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className={`w-full rounded-md border px-3 py-2 pr-12 text-sm outline-none shadow-sm
                 ${errors.password ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                                   : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                  : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
             />
             <button
               type="button"
@@ -118,7 +142,7 @@ export default function Signup() {
 
         {/* Gender */}
         <div className="flex items-center gap-6 text-sm">
-          {["Male","Female","Other","Prefer not to say"].map((g)=>(
+          {["Male", "Female", "Other", "Prefer not to say"].map((g) => (
             <label key={g} className="inline-flex items-center gap-2">
               <input
                 type="radio"
@@ -141,7 +165,7 @@ export default function Signup() {
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
               ${errors.phone ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                              : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
           />
           {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
         </div>
@@ -153,7 +177,7 @@ export default function Signup() {
             onChange={(e) => setForm({ ...form, blood: e.target.value })}
             className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm bg-white
               ${errors.blood ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                              : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
           >
             <option value="">Select Blood Group</option>
             {BLOOD_GROUPS.map((g) => (
