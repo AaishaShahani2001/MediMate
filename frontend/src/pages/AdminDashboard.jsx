@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { API_BASE, useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import  socket  from "../socket";
+import socket from "../socket";
 
 
 
@@ -520,6 +520,77 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
+              </div>
+            )}
+
+            {/* Reset Password (UI-only kept) */}
+            {tab === "password" && (
+              <div className="max-w-xl rounded-2xl border bg-white p-6 shadow-sm">
+                {/* Header */}
+                <h1 className="text-xl font-semibold text-slate-900">
+                  Reset Password
+                </h1>
+                <p className="mt-1 text-sm text-slate-600">
+                  Update your account password to keep your profile secure.
+                </p>
+
+                {/* Form */}
+                <form className="mt-6 space-y-4">
+                  {/* Current Password */}
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                      Current Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Enter current password"
+                      className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+          focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Enter new password"
+                      className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+          focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Re-enter new password"
+                      className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+          focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+
+                  {/* Action */}
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded-md bg-blue-600 px-6 py-2.5
+        text-sm font-semibold text-white
+        hover:bg-blue-700 transition"
+                  >
+                    Update Password
+                  </button>
+                </form>
+
+                {/* Footer Note */}
+                <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                  For security reasons, you’ll be asked to log in again after changing your
+                  password.
+                </div>
               </div>
             )}
 
