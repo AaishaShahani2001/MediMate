@@ -55,7 +55,7 @@ export default function AdminDashboard() {
     if (tab !== "messages") return;
 
     socket.on("new-message", (msg) => {
-      setMessages((prev) => [msg, ...prev]);
+      setAdminMessages((prev) => [msg, ...prev]);
     });
 
     socket.on("typing", ({ from }) => {
@@ -452,11 +452,11 @@ export default function AdminDashboard() {
 
                 {msgLoading ? (
                   <p className="px-6 py-6 text-slate-500">Loading messages...</p>
-                ) : messages.length === 0 ? (
+                ) : adminMessages.length === 0 ? (
                   <p className="px-6 py-6 text-slate-500">No messages yet.</p>
                 ) : (
                   <div className="divide-y mt-4">
-                    {messages.map((m) => (
+                    {adminMessages.map((m) => (
                       <div key={m._id} className="px-6 py-5">
                         <div className="flex justify-between items-start">
                           <div>
