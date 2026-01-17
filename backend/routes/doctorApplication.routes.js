@@ -55,6 +55,7 @@ router.post(
         degree: req.body.degree,
         experience: req.body.experience,
         consultationFee: req.body.consultationFee,
+        workplace: req.body.workplace,
         about: req.body.about,
 
         nic: {
@@ -102,6 +103,13 @@ router.patch("/:id/status", auth, adminOnly, async (req, res) => {
   const app = await DoctorApplication.findById(req.params.id);
   if (!app) return res.status(404).json({ message: "Not found" });
 
+  // 🔐 LOCK STATUS
+  if (app.status !== "Pending") {
+    return res.status(400).json({
+      message: "Status already finalized and cannot be changed",
+    });
+  }
+
   app.status = status;
   await app.save();
 
@@ -113,6 +121,7 @@ router.patch("/:id/status", auth, adminOnly, async (req, res) => {
   res.json(app);
 });
 
+
 /* ================= PUBLIC: GET APPROVED DOCTORS ================= */
 router.get("/public", async (req, res) => {
   try {
@@ -120,7 +129,7 @@ router.get("/public", async (req, res) => {
       status: "Approved",
     }).sort({ createdAt: -1 })
     .select(
-        "fullName specialization experience about avatar"
+        "fullName specialization experience about avatar workplace"
       );
 
     res.json(doctors);
@@ -136,7 +145,7 @@ router.get("/public/:id", async (req, res) => {
       _id: req.params.id,
       status: "Approved",
     }).select(
-      "fullName specialization degree experience consultationFee about avatar"
+      "fullName specialization degree experience consultationFee about avatar workplace"
     );
 
     if (!doctor) {
@@ -219,7 +228,8 @@ router.patch(
       doctor.experience = req.body.experience ?? doctor.experience;
       doctor.consultationFee = req.body.consultationFee ?? doctor.consultationFee;
       doctor.about = req.body.about ?? doctor.about;
-
+      doctor.workplace = req.body.workplace;
+      
       // ---------- REMOVE AVATAR ----------
       if (req.body.removeAvatar === "true") {
         doctor.avatar = "";
