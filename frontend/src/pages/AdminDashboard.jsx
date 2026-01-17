@@ -97,9 +97,10 @@ export default function AdminDashboard() {
             name: d.fullName,
             email: d.email,
             specialty: d.specialization,
+            workplace: d.workplace,
             experience: d.experience,
             status: d.status,
-            avatar: "",
+            avatar: d.avatar || "",
             bio: d.about,
             documents,
           };
@@ -224,6 +225,7 @@ export default function AdminDashboard() {
                           <th className="px-6 py-3">Name</th>
                           <th className="px-6 py-3">Email</th>
                           <th className="px-6 py-3">Specialization</th>
+                          <th className="px-6 py-3">Workplace</th>
                           <th className="px-6 py-3">Status</th>
                           <th className="px-6 py-3 text-right">Actions</th>
                         </tr>
@@ -243,16 +245,31 @@ export default function AdminDashboard() {
                             <td className="px-6 py-3 font-semibold">{r.name}</td>
                             <td className="px-6 py-3">{r.email}</td>
                             <td className="px-6 py-3">{r.specialty}</td>
+                            <td className="px-6 py-3">{r.workplace}</td>
                             <td className="px-6 py-3">
-                              <select
-                                value={r.status}
-                                onChange={(e) => actOnRequest(r.id, e.target.value)}
-                                className="rounded-md border px-3 py-1.5"
-                              >
-                                <option>Pending</option>
-                                <option>Approved</option>
-                                <option>Rejected</option>
-                              </select>
+                              <td className="px-6 py-3">
+                                {r.status === "Pending" ? (
+                                  <select
+                                    value={r.status}
+                                    onChange={(e) => actOnRequest(r.id, e.target.value)}
+                                    className="rounded-md border px-3 py-1.5"
+                                  >
+                                    <option>Pending</option>
+                                    <option>Approved</option>
+                                    <option>Rejected</option>
+                                  </select>
+                                ) : (
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold
+        ${r.status === "Approved"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-rose-100 text-rose-700"}`}
+                                  >
+                                    {r.status}
+                                  </span>
+                                )}
+                              </td>
+
                             </td>
                             <td className="px-6 py-3 text-right">
                               <button
@@ -326,6 +343,10 @@ export default function AdminDashboard() {
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <p><b>Specialization:</b> {selectedDoc.specialty}</p>
                     <p><b>Experience:</b> {selectedDoc.experience}+ years</p>
+                    <p className="text-sm text-slate-700">
+                      <b>Hospital / Clinic:</b> {selectedDoc.workplace || "—"}
+                    </p>
+
                     <p className="col-span-2">
                       <b>Status:</b>{" "}
                       <span

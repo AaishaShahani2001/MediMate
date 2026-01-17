@@ -38,6 +38,12 @@ const doctorApplicationSchema = new mongoose.Schema(
         time: String
       }
     ],
+    workplace: {
+    type: String,
+    trim: true,
+    default: "",
+  },
+
     avatar: {
       type: String,
       default: "",
