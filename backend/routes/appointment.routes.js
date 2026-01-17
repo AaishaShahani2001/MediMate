@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import Appointment from "../models/Appointment.js";
 import DoctorApplication from "../models/DoctorApplication.js";
 import { auth } from "../middleware/auth.js";
@@ -87,7 +88,7 @@ router.get("/my", auth, async (req, res) => {
 /* ================= DOCTOR: MY APPOINTMENTS ================= */
 router.get("/doctor/my", auth, doctorOnly, async (req, res) => {
   const doctor = await DoctorApplication.findOne({
-    userId: req.user.id,
+    userId: req.user._id,
     status: "Approved",
   });
 
@@ -109,7 +110,7 @@ router.patch("/:id/status", auth, doctorOnly, async (req, res) => {
   const { status } = req.body;
 
   const doctor = await DoctorApplication.findOne({
-    userId: req.user.id,
+    userId: req.user._id,
     status: "Approved",
   });
 
@@ -172,7 +173,7 @@ router.get(
   async (req, res) => {
     try {
       const doctor = await DoctorApplication.findOne({
-        userId: req.user.id,
+        userId: req.user._id,
       });
 
       const history = await Appointment.find({
@@ -188,6 +189,29 @@ router.get(
   }
 );
 
+/* ================= GET BOOKED SLOTS ================= */
+router.get(
+  "/doctor/:doctorApplicationId",
+  auth,
+  async (req, res) => {
+    try {
+      const { doctorApplicationId } = req.params;
 
+      //console.log("doctorApplicationId:", doctorApplicationId); DEBUG
+
+      const appointments = await Appointment.find({
+        doctorApplicationId: new mongoose.Types.ObjectId(doctorApplicationId),
+        status: { $in: ["Pending", "Confirmed"] },
+      }).select("date time status");
+
+      //console.log("appointments found:", appointments); DEBUG
+
+      res.json(appointments);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch slots" });
+    }
+  }
+);
 
 export default router;

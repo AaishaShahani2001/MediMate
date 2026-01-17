@@ -13,6 +13,7 @@ import AdminLogin from "./pages/AdminLogin";
 import ProtectedRoute from "./components/ProtectedRoute";
 import About from "./pages/About";
 import Contact from "./pages/ContactUs";
+import { Toaster } from "react-hot-toast";
 
 function Chrome({ children }) {
   const { pathname } = useLocation();
@@ -29,9 +30,12 @@ function Chrome({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+    
       <Chrome>
+        <Toaster position="top-right" />
         <Routes>
           {/* public */}
+          
           <Route index element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact/>} />
