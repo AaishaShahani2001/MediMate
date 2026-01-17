@@ -1,14 +1,27 @@
 import { Link } from "react-router-dom";
 
-function Avatar({ name }) {
+function Avatar({ name, src }) {
   const initials = name
-    .split(" ")
+    ?.split(" ")
     .map((n) => n[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="h-16 w-16 rounded-xl object-cover ring-2 ring-blue-200 shadow-sm"
+      />
+    );
+  }
+
   return (
-    <div className="grid h-16 w-16 place-items-center rounded-xl bg-linear-to-tr from-blue-200 to-indigo-200 font-bold text-slate-800">
+    <div className="grid h-16 w-16 place-items-center rounded-xl 
+      bg-linear-to-br from-blue-200 to-indigo-200 
+      font-bold text-slate-800 shadow-sm">
       {initials}
     </div>
   );
@@ -16,25 +29,59 @@ function Avatar({ name }) {
 
 export default function DoctorCard({ doc }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start gap-4">
-        <Avatar name={doc.name} />
-        <div className="flex-1">
-          <div className="text-sm font-medium text-blue-700">{doc.category}</div>
-          <h3 className="text-lg font-semibold text-slate-900">{`Dr ${doc.name}`}</h3>
-          <p className="text-sm text-slate-600">{doc.years}+ years experience</p>
-          <p className="mt-2 line-clamp-2 text-sm text-slate-600">{doc.about}</p>
+    <div
+      className="group rounded-2xl border border-slate-200 bg-white p-5 
+      shadow-sm transition-all duration-300
+      hover:-translate-y-1 hover:shadow-lg hover:border-blue-200"
+    >
+      <div className="flex gap-4">
+        {/* Avatar */}
+        <Avatar name={doc.name} src={doc.avatar} />
 
+        {/* Content */}
+        <div className="flex-1">
+          {/* Specialization */}
+          <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+            {doc.category}
+          </div>
+
+          {/* Name */}
+          <h3 className="mt-0.5 text-lg font-semibold text-slate-900">
+            Dr. {doc.name}
+          </h3>
+
+          {/* Workplace */}
+          {doc.workplace && (
+            <p className="text-sm text-slate-600">
+              {doc.workplace}
+            </p>
+          )}
+
+          {/* Experience */}
+          <p className="mt-1 text-sm text-slate-600">
+            {doc.years}+ years experience
+          </p>
+
+          {/* About */}
+          <p className="mt-3 line-clamp-2 text-sm text-slate-600">
+            {doc.about}
+          </p>
+
+          {/* Actions */}
           <div className="mt-4 flex items-center gap-3">
             <Link
               to={`/doctor/${doc.id}`}
-              className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              className="inline-flex items-center justify-center
+                rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold
+                text-white shadow hover:bg-blue-700 transition"
             >
               Book Now
             </Link>
+
             <Link
               to={`/doctor/${doc.id}`}
-              className="text-sm font-medium text-slate-700 hover:text-blue-700"
+              className="text-sm font-medium text-slate-600 
+                hover:text-blue-700 transition"
             >
               View Profile →
             </Link>

@@ -1,5 +1,10 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import heroImg from "../assets/about_image.png";
+import contactImg from "../assets/contact_image.png";
+import socket from "../socket";
+import { API_BASE, useAuth } from "../context/AuthContext";
+
 
 const CATEGORIES = [
   { key: "general", name: "General Physician", emoji: "🩺", blurb: "Colds, fever, checkups" },
@@ -11,232 +16,437 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  // simple UI-only state for contact form
-  const [contact, setContact] = useState({ name: "", email: "", message: "" });
   const [errors, setErrors] = useState({});
+  const { token } = useAuth();
 
-  function validate() {
-    const e = {};
-    if (!contact.name) e.name = "Full name is required";
-    if (!contact.email) e.email = "Email is required";
-    if (!contact.message) e.message = "Please enter a message";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = "success") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
   }
 
-  function submitContact(ev) {
-    ev.preventDefault();
-    if (!validate()) return;
-    alert(`Message sent (UI-only)
-From: ${contact.name} <${contact.email}>
-Message: ${contact.message}`);
-    setContact({ name: "", email: "", message: "" });
-    setErrors({});
+  /*================ GET IN TOUCH - CONTACT FORM ============= */
+  async function submitContact(e) {
+    e.preventDefault();
+
+    if (!name || !email || !message) {
+      showToast("Please fill all required fields", "error");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/messages/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+        }),
+      });
+      socket.emit("send-message", {
+        toRole: "admin",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to send message");
+
+      showToast("Message sent successfully 💙");
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch (err) {
+      showToast("Failed to send message", "error");
+    } finally {
+      setLoading(false);
+    }
   }
+
+
+
 
   return (
     <main className="min-h-screen bg-white">
       {/* HERO */}
-      <section className="relative overflow-hidden border-b bg-linear-to-br from-blue-50 via-white to-indigo-50">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-20">
-          <div>
-            <h1 className="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl md:text-5xl">
-              Find the right doctor, fast.
-            </h1>
-            <p className="mt-3 max-w-prose text-slate-600">
-              Browse categories, view profiles, and book appointments in minutes. Clean UI — perfect for your semester demo.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link
-                to="/doctors"
-                className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700"
-              >
-                Browse Doctors
-              </Link>
-              <Link
-                to="/signup"
-                className="rounded-md border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-              >
-                Get Started
-              </Link>
+      <section className=" mt-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-linear-to-br from-blue-400 via-indigo-400 to-blue-500" />
+        <div className="absolute inset-0 bg-white/40" />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-20">
+          <div className="grid grid-cols-1 items-center gap-12 rounded-4xl
+      bg-linear-to-br from-white via-blue-50 to-indigo-50 
+      p-10 shadow-[0_30px_80px_-20px_rgba(37,99,235,0.35)] 
+      backdrop-blur md:grid-cols-2 md:p-16">
+
+            {/* LEFT CONTENT */}
+            <div>
+              <h1 className="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl md:text-5xl">
+                Smart Healthcare,
+                <span className="block text-blue-600">
+                  One Click Away
+                </span>
+              </h1>
+
+              <p className="mt-5 max-w-xl text-slate-600 text-base md:text-lg">
+                HealthVA connects patients with verified doctors, simplifies
+                appointment booking, and offers AI-assisted health guidance —
+                all from one secure platform.
+              </p>
+
+              <div className="mt-7 flex flex-wrap gap-4">
+                <Link
+                  to="/doctors"
+                  className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold 
+              text-white shadow-md hover:bg-blue-700 hover:shadow-lg transition"
+                >
+                  Find a Doctor
+                </Link>
+
+                <Link
+                  to="/signup"
+                  className="rounded-lg bg-white px-6 py-3 text-sm font-semibold 
+              text-blue-700 shadow-sm ring-1 ring-slate-200 
+              hover:bg-blue-50 transition"
+                >
+                  Create Account
+                </Link>
+              </div>
+
+              <div className="mt-7 flex flex-wrap gap-6 text-sm text-slate-600">
+                <span className="flex items-center gap-2">✔ Verified Specialists</span>
+                <span className="flex items-center gap-2">✔ Secure Appointments</span>
+                <span className="flex items-center gap-2">✔ AI Health Support</span>
+              </div>
             </div>
 
-            <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
-              <li className="flex items-center gap-2">✅ Trusted professionals</li>
-              <li className="flex items-center gap-2">✅ Easy booking</li>
-              <li className="flex items-center gap-2">✅ Free account</li>
-            </ul>
-          </div>
+            {/* RIGHT IMAGE */}
+            <div className="relative flex justify-center">
+              {/* Soft glow behind image */}
+              <div className="absolute -inset-8 rounded-full bg-blue-300/40 blur-3xl" />
 
-          {/* decorative art block */}
-          <div className="relative h-72 w-full rounded-2xl bg-linear-to-tr from-blue-200 to-indigo-200 shadow-inner md:h-96">
-            <div className="absolute -left-6 -top-6 h-28 w-28 rounded-full bg-white/70 blur" />
-            <div className="absolute -bottom-8 right-6 h-36 w-36 rounded-full bg-white/60 blur" />
-            <div className="absolute left-10 top-10 h-24 w-24 rounded-2xl bg-white/80 backdrop-blur" />
+              <img
+                src={heroImg}
+                alt="Healthcare professionals"
+                className="relative w-full max-w-md rounded-2xl 
+            object-cover shadow-xl ring-1 ring-white/60"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CATEGORIES */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
-          <p className="text-slate-600">Pick a specialty to see available doctors</p>
+
+
+
+      {/* ================= CATEGORIES ================= */}
+      <section className="mx-auto max-w-7xl px-4 py-14">
+        {/* Header */}
+        <div className="mb-10 text-center">
+          <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            Popular Medical Specialties
+          </h2>
+          <p className="mt-2 text-slate-600">
+            Choose a category to find the right healthcare professional
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        {/* Cards */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((c) => (
             <button
               key={c.key}
               type="button"
-              className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl 
+          border border-slate-200 bg-white p-6 text-left 
+          shadow-sm transition-all duration-300
+          hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
             >
-              <span className="mb-1 block text-3xl">{c.emoji}</span>
-              <div className="font-semibold text-slate-900 group-hover:text-blue-700">{c.name}</div>
-              <div className="text-sm text-slate-600">{c.blurb}</div>
+              {/* soft hover glow */}
+              <div className="absolute inset-0 opacity-0 
+          bg-linear-to-br from-blue-50 via-white to-indigo-50 
+          transition group-hover:opacity-100" />
+
+              <div className="relative">
+                {/* Icon */}
+                <div className="mb-4 flex h-14 w-14 items-center justify-center 
+            rounded-xl bg-blue-100 text-3xl text-blue-700 
+            group-hover:bg-blue-600 group-hover:text-white transition">
+                  {c.emoji}
+                </div>
+
+                {/* Title */}
+                <h3 className="text-lg font-semibold text-slate-900 
+            group-hover:text-blue-700 transition">
+                  {c.name}
+                </h3>
+
+                {/* Description */}
+                <p className="mt-1 text-sm text-slate-600">
+                  {c.blurb}
+                </p>
+
+                {/* CTA hint
+          <div className="mt-4 text-sm font-medium text-blue-600 opacity-0 
+            transition group-hover:opacity-100">
+            View Doctors →
+          </div> */}
+              </div>
             </button>
           ))}
         </div>
 
-        <div className="mt-8">
+        {/* CTA */}
+        <div className="mt-10 text-center">
           <Link
             to="/doctors"
-            className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 sm:w-auto"
+            className="inline-flex items-center justify-center rounded-lg 
+        bg-blue-600 px-6 py-3 text-sm font-semibold text-white 
+        shadow hover:bg-blue-700 hover:shadow-md transition"
           >
             See All Doctors
           </Link>
         </div>
       </section>
 
+
       {/* HOW IT WORKS */}
-      <section className="border-y bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-12">
-          <div className="mb-6">
-            <h2 className="text-2xl font-semibold text-slate-900">How it works</h2>
-            <p className="text-slate-600">Three quick steps to better care</p>
+      <section className="relative bg-slate-50">
+        <div className="mx-auto max-w-7xl px-4 py-16">
+
+          {/* Header */}
+          <div className="mb-12 text-center">
+            <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+              How HealthVA Works
+            </h2>
+            <p className="mt-2 text-slate-600">
+              Get medical care in three simple steps
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="absolute -top-3 left-4 grid h-9 w-9 place-items-center rounded-full border bg-indigo-50 font-bold text-indigo-700">
-                  {i}
-                </div>
-                {i === 1 && (
-                  <>
-                    <h3 className="mt-4 text-base font-semibold text-slate-900">Choose a category</h3>
-                    <p className="text-sm text-slate-600">Filter doctors by specialty and availability.</p>
-                  </>
-                )}
-                {i === 2 && (
-                  <>
-                    <h3 className="mt-4 text-base font-semibold text-slate-900">View doctor profile</h3>
-                    <p className="text-sm text-slate-600">See experience, about section, and rating.</p>
-                  </>
-                )}
-                {i === 3 && (
-                  <>
-                    <h3 className="mt-4 text-base font-semibold text-slate-900">Book a slot</h3>
-                    <p className="text-sm text-slate-600">Pick a date (next 7 days) and time (08:30–17:30).</p>
-                  </>
-                )}
-              </div>
-            ))}
+          {/* Timeline */}
+          <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">
+
+            {/* Connector line (desktop only) */}
+            <div className="absolute left-0 right-0 top-10 hidden h-0.5 bg-blue-100 md:block" />
+
+            {/* STEP 1 */}
+            <StepCard
+              step="1"
+              title="Choose a Specialty"
+              desc="Browse medical categories and select the doctor that fits your needs."
+              icon="🩺"
+            />
+
+            {/* STEP 2 */}
+            <StepCard
+              step="2"
+              title="View Doctor Profile"
+              desc="Check qualifications, experience, and consultation details."
+              icon="👨‍⚕️"
+            />
+
+            {/* STEP 3 */}
+            <StepCard
+              step="3"
+              title="Book an Appointment"
+              desc="Select a date and time slot and confirm your appointment."
+              icon="📅"
+            />
+
           </div>
         </div>
       </section>
 
-      {/* GET IN TOUCH (contact form) */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Left: illustration/card */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <div className="relative aspect-16/12 w-full overflow-hidden rounded-xl bg-linear-to-tr from-amber-100 via-white to-amber-50">
-              {/* simple illustration using shapes */}
-              <div className="absolute left-6 top-6 h-20 w-20 rounded-full bg-blue-200" />
-              <div className="absolute right-10 top-10 h-20 w-32 rounded-xl bg-white/80 backdrop-blur" />
-              <div className="absolute bottom-8 left-1/2 h-10 w-40 -translate-x-1/2 rounded-xl bg-blue-500/20" />
-              <div className="absolute inset-0 grid place-items-center text-6xl">📞 ✉️ 📍</div>
-            </div>
-          </div>
 
-          {/* Right: form card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-semibold text-slate-900">Get in Touch with Us</h2>
+      {/* ================= GET IN TOUCH ================= */}
 
-            <form onSubmit={submitContact} className="mt-6 space-y-4">
-              {/* Full Name */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Full Name</label>
-                <input
-                  value={contact.name}
-                  onChange={(e) => setContact({ ...contact, name: e.target.value })}
-                  placeholder="Your Name"
-                  className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-                    ${errors.name ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                                  : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
-                />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+      <section className="relative overflow-hidden">
+        {/* Calm background */}
+        <div className="absolute inset-0 bg-linear-to-br from-blue-600 via-indigo-600 to-purple-600" />
+        <div className="absolute inset-0 bg-white/50" />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-20">
+          {/* Unified Card */}
+          <div className="grid grid-cols-1 overflow-hidden rounded-4xl
+      border border-slate-200 bg-white/90 shadow-[0_30px_80px_-20px_rgba(59,130,246,0.25)]
+      backdrop-blur md:grid-cols-2">
+
+            {/* LEFT: IMAGE SIDE */}
+            <div className="relative p-8 md:p-12">
+              {/* soft glow */}
+              <div className="absolute -top-12 -left-12 h-48 w-48 rounded-full bg-blue-200/40 blur-3xl" />
+              <div className="absolute -bottom-12 -right-12 h-48 w-48 rounded-full bg-indigo-200/40 blur-3xl" />
+
+              <img
+                src={contactImg}
+                alt="Contact HealthVA"
+                className="relative w-full rounded-2xl object-cover shadow-lg"
+              />
+
+              {/* overlay text */}
+              <div className="absolute bottom-12 left-12 right-12 rounded-xl
+          bg-white/80 backdrop-blur px-4 py-3 shadow">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  We’re Here to Help
+                </h3>
+                <p className="text-xs text-slate-600">
+                  Questions, feedback, or support — reach out anytime.
+                </p>
               </div>
+            </div>
 
-              {/* Email */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Email Address</label>
+            {/* RIGHT: FORM SIDE */}
+            <div className="p-8 md:p-12">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                Get in Touch with HealthVA
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Send us a message and our team will get back to you shortly.
+              </p>
+
+              <form onSubmit={submitContact} className="mt-6 space-y-4">
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+
                 <input
                   type="email"
-                  value={contact.email}
-                  onChange={(e) => setContact({ ...contact, email: e.target.value })}
-                  placeholder="you@example.com"
-                  className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-                    ${errors.email ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                                    : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                  placeholder="Your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
-                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
-              </div>
 
-              {/* Message */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Message</label>
                 <textarea
-                  rows={5}
-                  value={contact.message}
-                  onChange={(e) => setContact({ ...contact, message: e.target.value })}
-                  placeholder="Your message…"
-                  className={`w-full resize-y rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-                    ${errors.message ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                                      : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"}`}
+                  rows={4}
+                  placeholder="Your message"
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    socket.emit("typing", { toRole: "admin" });
+                  }}
+                  onBlur={() => socket.emit("stopTyping", { toRole: "admin" })}
+                  className="w-full resize-none rounded-md border border-slate-300 px-4 py-3 text-sm
+        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
-                {errors.message && <p className="mt-1 text-xs text-red-600">{errors.message}</p>}
-              </div>
 
-              <button
-                type="submit"
-                className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 md:w-auto"
+                <button
+                  disabled={loading}
+                  className="w-full rounded-md bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white
+        hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Sending..." : "Send Message"}
+                </button>
+              </form>
+            </div>
+
+
+
+          </div>
+        </div>
+      </section>
+
+
+      {/* ================= CTA BANNER ================= */}
+      <section className="mt-6 mx-auto max-w-7xl px-4 pb-16">
+        <div
+          className="relative overflow-hidden rounded-4xl
+    bg-linear-to-br from-blue-100 via-white to-indigo-100
+    px-8 py-12 shadow-[0_30px_80px_-30px_rgba(59,130,246,0.25)]
+    ring-1 ring-slate-200 md:px-12"
+        >
+          {/* subtle glow */}
+          <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            {/* Text */}
+            <div className="max-w-xl">
+              <h3 className="text-2xl font-semibold text-slate-900">
+                Ready to book your appointment?
+              </h3>
+              <p className="mt-2 text-slate-600">
+                Create a free account to manage appointments, track bookings,
+                and connect with verified doctors.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/signup"
+                className="inline-flex items-center justify-center
+          rounded-lg bg-blue-600 px-6 py-3
+          text-sm font-semibold text-white
+          shadow hover:bg-blue-700 transition"
               >
-                Send Message
-              </button>
-            </form>
+                Create Account
+              </Link>
+
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center
+          rounded-lg border border-slate-300
+          bg-white px-6 py-3
+          text-sm font-semibold text-slate-700
+          hover:bg-slate-50 transition"
+              >
+                Login
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA BANNER */}
-      <section className="mx-auto max-w-7xl px-4 pb-12">
-        <div className="flex flex-col items-start justify-between gap-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-10 text-white md:flex-row md:items-center md:gap-6">
-          <div>
-            <h3 className="text-xl font-semibold">Ready to book your appointment?</h3>
-            <p className="text-blue-100">Create a free account to save your details and bookings.</p>
-          </div>
-          <div className="flex gap-3">
-            <Link to="/signup" className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">
-              Create Account
-            </Link>
-            <Link to="/login" className="rounded-md bg-black/20 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-black/30">
-              Login
-            </Link>
-          </div>
-        </div>
-      </section>
+      {toast && (
+      <div
+        className={`fixed bottom-6 right-6 z-50 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-lg
+          ${toast.type === "error" ? "bg-rose-600" : "bg-emerald-600"}`}
+      >
+        {toast.message}
+      </div>
+    )}
+
     </main>
+  );
+}
+
+function StepCard({ step, title, desc, icon }) {
+  return (
+    <div className="relative z-10 rounded-2xl border border-slate-200 bg-white p-6 
+      shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+
+      {/* Step Circle */}
+      <div className="mb-4 flex h-12 w-12 items-center justify-center 
+        rounded-full bg-blue-600 text-lg font-bold text-white">
+        {step}
+      </div>
+
+      {/* Icon */}
+      <div className="mb-3 text-3xl">{icon}</div>
+
+      {/* Content */}
+      <h3 className="text-lg font-semibold text-slate-900">
+        {title}
+      </h3>
+      <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+        {desc}
+      </p>
+    </div>
   );
 }

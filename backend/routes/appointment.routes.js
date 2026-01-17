@@ -2,6 +2,7 @@ import express from "express";
 import Appointment from "../models/Appointment.js";
 import DoctorApplication from "../models/DoctorApplication.js";
 import { auth } from "../middleware/auth.js";
+import { doctorOnly } from "../middleware/doctorOnly.js";
 
 const router = express.Router();
 
@@ -14,6 +15,7 @@ router.post("/", auth, async (req, res) => {
 
     const { doctorId, date, time, notes } = req.body;
 
+    // Check doctor exists & approved
     const doctor = await DoctorApplication.findOne({
       _id: doctorId,
       status: "Approved",
@@ -23,24 +25,40 @@ router.post("/", auth, async (req, res) => {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    // prevent duplicate slot booking
-    const existing = await Appointment.findOne({
+    ///  AUTO-BLOCK LOGIC
+    // appointment.routes.js
+
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const alreadyBooked = await Appointment.findOne({
       doctorApplicationId: doctorId,
-      date,
-      time,
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+      time: time, // string compare is SAFE
       status: { $ne: "Cancelled" },
     });
 
-    if (existing) {
-      return res.status(400).json({ message: "Time slot already booked" });
+
+    if (alreadyBooked) {
+      return res.status(400).json({
+        message: "This time slot is already booked",
+      });
     }
 
+    // Create appointment
     const appointment = await Appointment.create({
       patientId: req.user.id,
       doctorApplicationId: doctorId,
       date,
       time,
       notes,
+
     });
 
     res.status(201).json(appointment);
@@ -67,119 +85,109 @@ router.get("/my", auth, async (req, res) => {
 
 
 /* ================= DOCTOR: MY APPOINTMENTS ================= */
-router.get("/doctor", auth, async (req, res) => {
-  try {
-    if (req.user.role !== "doctor") {
-      return res.status(403).json({ message: "Access denied" });
-    }
+router.get("/doctor/my", auth, doctorOnly, async (req, res) => {
+  const doctor = await DoctorApplication.findOne({
+    userId: req.user.id,
+    status: "Approved",
+  });
 
-    const doctorApp = await DoctorApplication.findOne({
-      userId: req.user.id,
-      status: "Approved",
-    });
-
-    if (!doctorApp) {
-      return res.status(404).json({ message: "Doctor profile not found" });
-    }
-
-    const appointments = await Appointment.find({
-      doctorApplicationId: doctorApp._id,
-    })
-      .populate("patientId", "name email")
-      .sort({ date: 1 });
-
-    res.json(appointments);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to load doctor appointments" });
+  if (!doctor) {
+    return res.status(404).json({ message: "Doctor profile not found" });
   }
+
+  const appts = await Appointment.find({
+    doctorApplicationId: doctor._id,
+  })
+    .populate("patientId", "name email phone dob blood")
+    .sort({ date: 1 });
+
+  res.json(appts);
 });
 
-/* ================= CANCEL APPOINTMENT ================= */
-router.patch("/:id/cancel", auth, async (req, res) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id);
-    if (!appointment) {
-      return res.status(404).json({ message: "Appointment not found" });
-    }
+/* ================= DOCTOR: UPDATE STATUS ================= */
+router.patch("/:id/status", auth, doctorOnly, async (req, res) => {
+  const { status } = req.body;
 
-    // patient or doctor can cancel
-    if (
-      appointment.patientId.toString() !== req.user.id &&
-      req.user.role !== "doctor"
-    ) {
-      return res.status(403).json({ message: "Not allowed" });
-    }
+  const doctor = await DoctorApplication.findOne({
+    userId: req.user.id,
+    status: "Approved",
+  });
 
-    appointment.status = "Cancelled";
-    await appointment.save();
+  const appt = await Appointment.findOne({
+    _id: req.params.id,
+    doctorApplicationId: doctor._id,
+  });
 
-    res.json({ message: "Appointment cancelled" });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to cancel appointment" });
+  if (!appt) {
+    return res.status(404).json({ message: "Appointment not found" });
   }
+
+  appt.status = status;
+  await appt.save();
+
+  res.json({ message: "Status updated", appointment: appt });
 });
 
-// Edit appointment (Patient)
+/* ================= PATIENT: EDIT ================= */
 router.patch("/:id/edit", auth, async (req, res) => {
-  const { date, time } = req.body;
+  const appt = await Appointment.findById(req.params.id);
 
-  try {
-    const appt = await Appointment.findById(req.params.id);
-
-    if (!appt) {
-      return res.status(404).json({ message: "Appointment not found" });
-    }
-
-    if (appt.patientId.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    if (appt.status !== "Pending") {
-      return res
-        .status(400)
-        .json({ message: "Only pending appointments can be edited" });
-    }
-
-    appt.date = date;
-    appt.time = time;
-    await appt.save();
-
-    res.json({ message: "Appointment updated", appointment: appt });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to update appointment" });
+  if (!appt || appt.patientId.toString() !== req.user.id) {
+    return res.status(403).json({ message: "Unauthorized" });
   }
+
+  if (appt.status !== "Pending") {
+    return res.status(400).json({ message: "Only pending appointments" });
+  }
+
+  appt.date = req.body.date;
+  appt.time = req.body.time;
+  await appt.save();
+
+  res.json({ message: "Updated", appointment: appt });
 });
 
-
-// Cancel appointment (Patient)
+/* ================= PATIENT: CANCEL ================= */
 router.patch("/:id/cancel", auth, async (req, res) => {
-  try {
-    const appt = await Appointment.findById(req.params.id);
+  const appt = await Appointment.findById(req.params.id);
 
-    if (!appt) {
-      return res.status(404).json({ message: "Appointment not found" });
-    }
-
-    // Only owner can cancel
-    if (appt.patientId.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    // Only pending appointments
-    if (appt.status !== "Pending") {
-      return res
-        .status(400)
-        .json({ message: "Only pending appointments can be cancelled" });
-    }
-
-    appt.status = "Cancelled";
-    await appt.save();
-
-    res.json({ message: "Appointment cancelled", appointment: appt });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to cancel appointment" });
+  if (!appt || appt.patientId.toString() !== req.user.id) {
+    return res.status(403).json({ message: "Unauthorized" });
   }
+
+  if (appt.status !== "Pending") {
+    return res.status(400).json({ message: "Only pending appointments" });
+  }
+
+  appt.status = "Cancelled";
+  await appt.save();
+
+  res.json({ message: "Cancelled", appointment: appt });
 });
+
+/* ================= DOCTOR: GET PATIENT HISTORY ================= */
+router.get(
+  "/patient/:patientId/history",
+  auth,
+  async (req, res) => {
+    try {
+      const doctor = await DoctorApplication.findOne({
+        userId: req.user.id,
+      });
+
+      const history = await Appointment.find({
+        patientId: req.params.patientId,
+        doctorApplicationId: doctor._id,
+      })
+        .sort({ date: -1 });
+
+      res.json(history);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to load medical history" });
+    }
+  }
+);
+
 
 
 export default router;
