@@ -72,6 +72,7 @@ export default function DoctorDashboard() {
           degree: data.degree || "",
           experience: data.experience || "",
           consultationFee: data.consultationFee || "",
+          workplace: data.workplace || "",
           about: data.about || "",
           gender: data.gender || "", // optional 
           avatar: data.avatar || "", // optional 
@@ -118,63 +119,65 @@ export default function DoctorDashboard() {
   }
 
   /* ================= SAVE PROFILE  ================= */
- async function saveProfile() {
-  try {
-    const formData = new FormData();
-    formData.append("fullName", docForm.fullName);
-    formData.append("phone", docForm.phone);
-    formData.append("specialization", docForm.specialization);
-    formData.append("degree", docForm.degree);
-    formData.append("experience", docForm.experience);
-    formData.append("consultationFee", docForm.consultationFee);
-    formData.append("about", docForm.about);
+  async function saveProfile() {
+    try {
+      const formData = new FormData();
+      formData.append("fullName", docForm.fullName);
+      formData.append("phone", docForm.phone);
+      formData.append("specialization", docForm.specialization);
+      formData.append("degree", docForm.degree);
+      formData.append("experience", docForm.experience);
+      formData.append("consultationFee", docForm.consultationFee);
+      formData.append("workplace", docForm.workplace);
+      formData.append("about", docForm.about);
 
-    if (docForm.avatar instanceof File) {
-      formData.append("avatar", docForm.avatar);
+      if (docForm.avatar instanceof File) {
+        formData.append("avatar", docForm.avatar);
+      }
+
+      if (removeAvatar) {
+        formData.append("removeAvatar", "true");
+      }
+
+      const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Update failed");
+      }
+
+      // backend returns doctor object
+      const updatedDoctor = await res.json();
+
+      // SET BOTH STATES FROM BACKEND RESPONSE
+      setDoc(updatedDoctor);
+      setDocForm({
+        fullName: updatedDoctor.fullName || "",
+        email: updatedDoctor.email || "",
+        phone: updatedDoctor.phone || "",
+        specialization: updatedDoctor.specialization || "",
+        degree: updatedDoctor.degree || "",
+        experience: updatedDoctor.experience || "",
+        consultationFee: updatedDoctor.consultationFee || "",
+        workplace: updatedDoctor.workplace || "",
+        about: updatedDoctor.about || "",
+        gender: updatedDoctor.gender || "",
+        avatar: updatedDoctor.avatar || "",
+      });
+
+      setRemoveAvatar(false);
+      setEdit(false);
+      showToast("Profile updated successfully");
+    } catch (e) {
+      showToast(e.message || "Failed to update profile", "error");
     }
-
-    if (removeAvatar) {
-      formData.append("removeAvatar", "true");
-    }
-
-    const res = await fetch(`${API_BASE}/api/doctor-applications/me`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || "Update failed");
-    }
-
-    // backend returns doctor object
-    const updatedDoctor = await res.json();
-
-    // SET BOTH STATES FROM BACKEND RESPONSE
-    setDoc(updatedDoctor);
-    setDocForm({
-      fullName: updatedDoctor.fullName || "",
-      email: updatedDoctor.email || "",
-      phone: updatedDoctor.phone || "",
-      specialization: updatedDoctor.specialization || "",
-      degree: updatedDoctor.degree || "",
-      experience: updatedDoctor.experience || "",
-      consultationFee: updatedDoctor.consultationFee || "",
-      about: updatedDoctor.about || "",
-      gender: updatedDoctor.gender || "",
-      avatar: updatedDoctor.avatar || "",
-    });
-
-    setRemoveAvatar(false);
-    setEdit(false);
-    showToast("Profile updated successfully");
-  } catch (e) {
-    showToast(e.message || "Failed to update profile", "error");
   }
-}
 
 
 
@@ -308,6 +311,13 @@ export default function DoctorDashboard() {
                       <Field label="Email" value={docForm.email} readOnly={true} />
                       <Field label="Phone" value={docForm.phone} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, phone: v })} />
                       <Field label="Specialization" value={docForm.specialization} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, specialization: v })} />
+                      <Field
+                        label="Hospital / Clinic"
+                        value={docForm.workplace}
+                        readOnly={!edit}
+                        onChange={(v) => setDocForm({ ...docForm, workplace: v })}
+                      />
+
                       <Field label="Degree" value={docForm.degree} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, degree: v })} />
                       <Field label="Experience" value={docForm.experience} readOnly={!edit} onChange={(v) => setDocForm({ ...docForm, experience: v })} />
                       <Field
@@ -354,6 +364,7 @@ export default function DoctorDashboard() {
                                 email: doc.email || "",
                                 phone: doc.phone || "",
                                 specialization: doc.specialization || "",
+                                workplace: doc.workplace || "",
                                 degree: doc.degree || "",
                                 experience: doc.experience || "",
                                 consultationFee: doc.consultationFee || "",
