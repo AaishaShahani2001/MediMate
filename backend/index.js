@@ -1,3 +1,5 @@
+import http from "http";
+import { Server } from "socket.io";
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
@@ -11,11 +13,13 @@ import appointmentRoutes from "./routes/appointment.routes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import adminRoutes from "./routes/admin.routes.js"
 import aiRoutes from "./routes/ai.routes.js";
+import messageRoutes from "./routes/message.route.js";
 
 const allowedOrigins = ["http://localhost:5173"];
 
 //Initializing express app
 const app = express();
+
 
 // app.use(cors({
 //   origin: "http://localhost:5176", // frontend URL
@@ -39,9 +43,38 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/messages", messageRoutes);
 
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+const server = http.createServer(app);
+
+/* SOCKET.IO */
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+  }
+});
+
+io.on("connection", (socket) => {
+  socket.on("join", ({ userId }) => {
+    onlineUsers.set(userId, socket.id);
+    io.emit("online-users", Array.from(onlineUsers.keys()));
+  });
+
+  socket.on("disconnect", () => {
+    for (const [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
+    io.emit("online-users", Array.from(onlineUsers.keys()));
+  });
+});
+
+
 
 // Connect MongoDB (with error handling)
 if (process.env.MONGODB_URI) {

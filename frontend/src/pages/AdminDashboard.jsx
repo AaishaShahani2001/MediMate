@@ -1,13 +1,21 @@
 import { useState, useEffect } from "react";
 import { API_BASE, useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import  socket  from "../socket";
+
 
 
 export default function AdminDashboard() {
   const { token, logout } = useAuth();
   const [tab, setTab] = useState("dashboard");
+  const [isTyping, setIsTyping] = useState(false);
   const navigate = useNavigate();
-  const stats = { patients: 3, doctors: 3, admins: 1 };
+  const [stats, setStats] = useState({
+    doctors: 0,
+    users: 0,
+    appointments: 0,
+  });
+
 
   // REAL doctor requests
   const [requests, setRequests] = useState([]);
@@ -16,6 +24,22 @@ export default function AdminDashboard() {
   // View Details modal
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
+
+  // Messages
+  const [messages, setMessages] = useState([]);
+  const [replyText, setReplyText] = useState({});
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    socket.on("typing", () => setIsTyping(true));
+    socket.on("stopTyping", () => setIsTyping(false));
+
+    return () => {
+      socket.off("typing");
+      socket.off("stopTyping");
+    };
+  }, []);
 
   function openDetails(row) {
     setSelectedDoc(row);
@@ -26,6 +50,39 @@ export default function AdminDashboard() {
     setDetailOpen(false);
     setSelectedDoc(null);
   }
+
+  useEffect(() => {
+    if (tab !== "messages") return;
+
+    socket.on("new-message", (msg) => {
+      setMessages((prev) => [msg, ...prev]);
+    });
+
+    socket.on("typing", ({ from }) => {
+      console.log("Patient typing:", from);
+    });
+
+    socket.on("online-users", (users) => {
+      console.log("Online users:", users);
+    });
+
+    return () => {
+      socket.off("new-message");
+      socket.off("typing");
+      socket.off("online-users");
+    };
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "messages") return;
+
+    fetch(`${API_BASE}/api/messages/admin/mark-read`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }, [tab]);
+
+
 
   useEffect(() => {
     if (tab !== "dashboard") return;
@@ -140,6 +197,80 @@ export default function AdminDashboard() {
     }
   }
 
+  /* ================= MESSAGES ================= */
+
+  useEffect(() => {
+    if (tab !== "messages") return;
+
+    async function fetchMessages() {
+      setMsgLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/messages/admin`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        setMessages(data);
+      } catch (err) {
+        console.error(err.message);
+      } finally {
+        setMsgLoading(false);
+      }
+    }
+
+    fetchMessages();
+  }, [tab, token]);
+
+
+  /* ================= SEND REPLY ================= */
+  async function sendReply(id) {
+    const reply = replyText[id];
+    if (!reply) return;
+
+    await fetch(`${API_BASE}/api/messages/${id}/reply`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ reply }),
+    });
+
+    setMessages((list) =>
+      list.map((m) =>
+        m._id === id ? { ...m, reply, read: true } : m
+      )
+    );
+
+    setReplyText((prev) => ({ ...prev, [id]: "" }));
+    setUnreadCount((c) => Math.max(0, c - 1));
+  }
+
+
+
+  /* ================= FETCH UNREAD MSG COUNT ================= */
+
+  useEffect(() => {
+    if (tab !== "messages") return;
+
+    fetch(`${API_BASE}/api/messages/admin/unread-count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setUnreadCount(d.count));
+  }, [tab, token]);
+
+  /* ================= DELETE MESSAGES ================= */
+  async function deleteMessage(id) {
+    await fetch(`${API_BASE}/api/messages/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    setMessages((list) => list.filter((m) => m._id !== id));
+  }
+
+
   /* ================= LOGOUT ================= */
   function handleLogout() {
     logout();
@@ -160,7 +291,21 @@ export default function AdminDashboard() {
               <nav className="flex flex-col gap-1">
                 <SideItem icon="📊" label="Dashboard" active={tab === "dashboard"} onClick={() => setTab("dashboard")} />
                 <SideItem icon="🩺" label="Doctor Requests" active={tab === "requests"} onClick={() => setTab("requests")} />
-                <SideItem icon="✉️" label="Messages" active={tab === "messages"} onClick={() => setTab("messages")} />
+                <SideItem
+                  icon="✉️"
+                  label={
+                    <span className="flex items-center gap-2">
+                      Messages
+                      {unreadCount > 0 && (
+                        <span className="rounded-full bg-rose-600 px-2 text-xs text-white">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </span>
+                  }
+                  active={tab === "messages"}
+                  onClick={() => setTab("messages")}
+                />
                 <SideItem icon="🔒" label="Change Password" active={tab === "password"} onClick={() => setTab("password")} />
               </nav>
               <button
@@ -247,28 +392,27 @@ export default function AdminDashboard() {
                             <td className="px-6 py-3">{r.specialty}</td>
                             <td className="px-6 py-3">{r.workplace}</td>
                             <td className="px-6 py-3">
-                              <td className="px-6 py-3">
-                                {r.status === "Pending" ? (
-                                  <select
-                                    value={r.status}
-                                    onChange={(e) => actOnRequest(r.id, e.target.value)}
-                                    className="rounded-md border px-3 py-1.5"
-                                  >
-                                    <option>Pending</option>
-                                    <option>Approved</option>
-                                    <option>Rejected</option>
-                                  </select>
-                                ) : (
-                                  <span
-                                    className={`rounded-full px-3 py-1 text-xs font-semibold
+
+                              {r.status === "Pending" ? (
+                                <select
+                                  value={r.status}
+                                  onChange={(e) => actOnRequest(r.id, e.target.value)}
+                                  className="rounded-md border px-3 py-1.5"
+                                >
+                                  <option>Pending</option>
+                                  <option>Approved</option>
+                                  <option>Rejected</option>
+                                </select>
+                              ) : (
+                                <span
+                                  className={`rounded-full px-3 py-1 text-xs font-semibold
         ${r.status === "Approved"
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-rose-100 text-rose-700"}`}
-                                  >
-                                    {r.status}
-                                  </span>
-                                )}
-                              </td>
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-rose-100 text-rose-700"}`}
+                                >
+                                  {r.status}
+                                </span>
+                              )}
 
                             </td>
                             <td className="px-6 py-3 text-right">
@@ -287,6 +431,99 @@ export default function AdminDashboard() {
                 )}
               </div>
             )}
+
+            {/* ================= MESSAGES ================= */}
+            {tab === "messages" && (
+              <div className="rounded-2xl border bg-white shadow-sm">
+                <div className="px-6 pt-6">
+                  <h1 className="text-2xl font-semibold text-slate-900">Messages</h1>
+                  <p className="text-sm text-slate-600">
+                    Patient/ Users messages
+                  </p>
+                </div>
+
+                {isTyping && (
+                  <div className="px-6 mt-2">
+                    <p className="text-xs text-slate-500 italic">
+                      Patient is typing...
+                    </p>
+                  </div>
+                )}
+
+                {msgLoading ? (
+                  <p className="px-6 py-6 text-slate-500">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <p className="px-6 py-6 text-slate-500">No messages yet.</p>
+                ) : (
+                  <div className="divide-y mt-4">
+                    {messages.map((m) => (
+                      <div key={m._id} className="px-6 py-5">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            {/* Sender name */}
+                            <p className="font-semibold text-slate-900">
+                              {m.sender?.name || m.name || "Unknown Sender"}
+                            </p>
+
+                            {/* Sender email */}
+                            <p className="text-xs text-slate-500">
+                              {m.sender?.email || m.email || "—"}
+                            </p>
+                          </div>
+
+                          <span className="text-xs text-slate-400">
+                            {new Date(m.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+
+
+                        <p className="mt-3 text-sm text-slate-700">
+                          {m.message}
+                        </p>
+
+                        {/* Reply Section */}
+                        {m.reply ? (
+                          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm">
+                            <b>Admin reply:</b>
+                            <p>{m.reply}</p>
+                            <button
+                              onClick={() => deleteMessage(m._id)}
+                              className="mt-2 text-xs text-rose-600 hover:underline"
+                            >
+                              Clear conversation
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-4 space-y-2">
+                            <textarea
+                              placeholder="Type reply..."
+                              value={replyText[m._id] || ""}
+                              onChange={(e) =>
+                                setReplyText({
+                                  ...replyText,
+                                  [m._id]: e.target.value,
+                                })
+                              }
+                              className="w-full rounded-md border px-3 py-2 text-sm"
+                            />
+
+                            <button
+                              onClick={() => sendReply(m._id)}
+                              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            >
+                              Send Reply
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+              </div>
+            )}
+
+
           </section>
         </div>
       </div>
@@ -443,7 +680,7 @@ export default function AdminDashboard() {
   );
 }
 
-/* helpers (unchanged) */
+/* helpers */
 function SideItem({ icon, label, active, onClick }) {
   const base = "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition";
   const a = active ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-blue-50 hover:text-blue-700";

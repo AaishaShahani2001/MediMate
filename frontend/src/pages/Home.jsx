@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import heroImg from "../assets/about_image.png";
 import contactImg from "../assets/contact_image.png";
+import socket from "../socket";
+import { API_BASE, useAuth } from "../context/AuthContext";
 
 
 const CATEGORIES = [
@@ -14,28 +16,63 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  // simple UI-only state for contact form
-  const [contact, setContact] = useState({ name: "", email: "", message: "" });
   const [errors, setErrors] = useState({});
+  const { token } = useAuth();
 
-  function validate() {
-    const e = {};
-    if (!contact.name) e.name = "Full name is required";
-    if (!contact.email) e.email = "Email is required";
-    if (!contact.message) e.message = "Please enter a message";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = "success") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
   }
 
-  function submitContact(ev) {
-    ev.preventDefault();
-    if (!validate()) return;
-    alert(`Message sent (UI-only)
-From: ${contact.name} <${contact.email}>
-Message: ${contact.message}`);
-    setContact({ name: "", email: "", message: "" });
-    setErrors({});
+  /*================ GET IN TOUCH - CONTACT FORM ============= */
+  async function submitContact(e) {
+    e.preventDefault();
+
+    if (!name || !email || !message) {
+      showToast("Please fill all required fields", "error");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/messages/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+        }),
+      });
+      socket.emit("send-message", {
+        toRole: "admin",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to send message");
+
+      showToast("Message sent successfully 💙");
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch (err) {
+      showToast("Failed to send message", "error");
+    } finally {
+      setLoading(false);
+    }
   }
+
+
+
 
   return (
     <main className="min-h-screen bg-white">
@@ -269,92 +306,57 @@ Message: ${contact.message}`);
 
             {/* RIGHT: FORM SIDE */}
             <div className="p-8 md:p-12">
-              <h2 className="text-2xl font-bold text-slate-900">
+              <h2 className="text-2xl font-semibold text-slate-900">
                 Get in Touch with HealthVA
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                Send us a message and our team will get back to you.
+                Send us a message and our team will get back to you shortly.
               </p>
 
-              <form onSubmit={submitContact} className="mt-8 space-y-4">
-                {/* Full Name */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Full Name
-                  </label>
-                  <input
-                    value={contact.name}
-                    onChange={(e) =>
-                      setContact({ ...contact, name: e.target.value })
-                    }
-                    placeholder="Your Name"
-                    className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-                ${errors.name
-                        ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                        : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
-                      }`}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-xs text-red-600">{errors.name}</p>
-                  )}
-                </div>
+              <form onSubmit={submitContact} className="mt-6 space-y-4">
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
 
-                {/* Email */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={contact.email}
-                    onChange={(e) =>
-                      setContact({ ...contact, email: e.target.value })
-                    }
-                    placeholder="you@example.com"
-                    className={`w-full rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-                ${errors.email
-                        ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                        : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
-                      }`}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-xs text-red-600">{errors.email}</p>
-                  )}
-                </div>
+                <input
+                  type="email"
+                  placeholder="Your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm
+        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
 
-                {/* Message */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Message
-                  </label>
-                  <textarea
-                    rows={5}
-                    value={contact.message}
-                    onChange={(e) =>
-                      setContact({ ...contact, message: e.target.value })
-                    }
-                    placeholder="Your message…"
-                    className={`w-full resize-y rounded-md border px-3 py-2 text-sm outline-none shadow-sm
-                ${errors.message
-                        ? "border-red-300 focus:ring-2 focus:ring-red-200"
-                        : "border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
-                      }`}
-                  />
-                  {errors.message && (
-                    <p className="mt-1 text-xs text-red-600">{errors.message}</p>
-                  )}
-                </div>
+                <textarea
+                  rows={4}
+                  placeholder="Your message"
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    socket.emit("typing", { toRole: "admin" });
+                  }}
+                  onBlur={() => socket.emit("stopTyping", { toRole: "admin" })}
+                  className="w-full resize-none rounded-md border border-slate-300 px-4 py-3 text-sm
+        focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
 
                 <button
-                  type="submit"
-                  className="mt-2 w-full rounded-lg bg-blue-600 px-6 py-3
-              text-sm font-semibold text-white shadow hover:bg-blue-700
-              hover:shadow-md transition md:w-auto"
+                  disabled={loading}
+                  className="w-full rounded-md bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white
+        hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Send Message
+                  {loading ? "Sending..." : "Send Message"}
                 </button>
               </form>
             </div>
+
+
+
           </div>
         </div>
       </section>
@@ -410,6 +412,15 @@ Message: ${contact.message}`);
           </div>
         </div>
       </section>
+
+      {toast && (
+      <div
+        className={`fixed bottom-6 right-6 z-50 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-lg
+          ${toast.type === "error" ? "bg-rose-600" : "bg-emerald-600"}`}
+      >
+        {toast.message}
+      </div>
+    )}
 
     </main>
   );
