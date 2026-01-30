@@ -14,6 +14,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import About from "./pages/About";
 import Contact from "./pages/ContactUs";
 import { Toaster } from "react-hot-toast";
+import VideoCall from "./pages/VideoCall";
 
 function Chrome({ children }) {
   const { pathname } = useLocation();
@@ -43,7 +44,7 @@ export default function App() {
           <Route path="/doctor/:id" element={<DoctorDetails />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-
+          <Route path="/video-call/:appointmentId" element={<VideoCall />} />
           <Route element={<ProtectedRoute requireRole="patient" />}>
             <Route path="/patient" element={<PatientDashboard />} />
           </Route>

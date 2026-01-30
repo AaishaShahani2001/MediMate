@@ -99,7 +99,7 @@ router.get("/doctor/my", auth, doctorOnly, async (req, res) => {
   const appts = await Appointment.find({
     doctorApplicationId: doctor._id,
   })
-    .populate("patientId", "name email phone dob blood")
+    .populate("patientId", "name email phone dob blood gender")
     .sort({ date: 1 });
 
   res.json(appts);

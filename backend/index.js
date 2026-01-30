@@ -15,6 +15,11 @@ import adminRoutes from "./routes/admin.routes.js"
 import aiRoutes from "./routes/ai.routes.js";
 import messageRoutes from "./routes/message.route.js";
 
+import jwt from "jsonwebtoken";
+import Appointment from "./models/Appointment.js";
+import DoctorApplication from "./models/DoctorApplication.js";
+
+
 const allowedOrigins = ["http://localhost:5173"];
 
 //Initializing express app
@@ -57,11 +62,118 @@ const io = new Server(server, {
   }
 });
 
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("No token"));
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = {
+      id: decoded.id,
+      role: decoded.role,
+    };
+    next();
+  } catch (err) {
+    next(new Error("Invalid token"));
+  }
+});
+
+
+/* SOCKET.IO */
+
+const onlineUsers = new Map();
+
 io.on("connection", (socket) => {
+  console.log("🔌 Socket connected:", socket.id);
+
+  /* ================= ONLINE USERS (existing feature) ================= */
   socket.on("join", ({ userId }) => {
     onlineUsers.set(userId, socket.id);
     io.emit("online-users", Array.from(onlineUsers.keys()));
   });
+
+  /* ================= APPOINTMENT VIDEO CALL ================= */
+
+  socket.on("join-appointment", async ({ appointmentId }) => {
+    try {
+      const { id: userId, role } = socket.user;
+
+      const appt = await Appointment.findById(appointmentId).lean();
+      if (!appt) {
+        socket.emit("join-denied", { message: "Appointment not found" });
+        return;
+      }
+
+      if (!appt || appt.status !== "Confirmed") {
+        return socket.emit("join-denied", {
+          message: "Appointment not confirmed",
+        });
+      }
+
+      if (appt.status === "Cancelled") {
+        socket.emit("join-denied", { message: "Appointment cancelled" });
+        return;
+      }
+
+      // Patient validation
+      if (role === "patient") {
+        if (String(appt.patientId) !== String(userId)) {
+          socket.emit("join-denied", { message: "Not your appointment" });
+          return;
+        }
+      }
+
+      // Doctor validation
+      if (role === "doctor") {
+        const doc = await DoctorApplication.findOne({ userId }).lean();
+        if (!doc || String(doc._id) !== String(appt.doctorApplicationId)) {
+          socket.emit("join-denied", { message: "Not your appointment" });
+          return;
+        }
+      }
+
+      const now = new Date();
+      const apptTime = new Date(`${appt.date}T${appt.time}`);
+      const joinFrom = new Date(apptTime.getTime() - 5 * 60 * 1000);
+
+      if (now < joinFrom) {
+        return socket.emit("join-denied", {
+          message: "You can join 5 minutes before the appointment time",
+        });
+      }
+
+      const roomId = `appointment:${appointmentId}`;
+      socket.join(roomId);
+
+      socket.emit("join-ok", { roomId });
+
+      const roomSize = io.sockets.adapter.rooms.get(roomId)?.size || 1;
+      io.to(roomId).emit("room-users", { count: roomSize });
+
+      if (roomSize >= 2) {
+        io.to(roomId).emit("room-ready");
+      }
+
+      console.log(`✅ ${role} joined ${roomId}`);
+    } catch (err) {
+      socket.emit("join-denied", { message: "Join failed" });
+    }
+  });
+
+  /* ================= WEBRTC SIGNALING ================= */
+
+  socket.on("signal", ({ appointmentId, data }) => {
+    const roomId = `appointment:${appointmentId}`;
+    socket.to(roomId).emit("signal", data);
+  });
+
+  socket.on("leave-appointment", ({ appointmentId }) => {
+    const roomId = `appointment:${appointmentId}`;
+    socket.leave(roomId);
+    socket.to(roomId).emit("peer-left");
+  });
+
+  /* ================= DISCONNECT ================= */
 
   socket.on("disconnect", () => {
     for (const [userId, socketId] of onlineUsers.entries()) {
@@ -71,8 +183,10 @@ io.on("connection", (socket) => {
       }
     }
     io.emit("online-users", Array.from(onlineUsers.keys()));
+    console.log("❌ Socket disconnected:", socket.id);
   });
 });
+
 
 
 

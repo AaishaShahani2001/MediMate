@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth, API_BASE } from "../context/AuthContext";
 import AIHealthAssistant from "../components/AIHealthAssistant";
 import socket from "../socket";
-
+import { useMemo } from "react";
 
 
 export default function PatientDashboard() {
   const [tab, setTab] = useState("profile");
-
   const { token, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -125,9 +124,6 @@ export default function PatientDashboard() {
     fetchMessages();
   }, [tab, token]);
 
-
-
-
   /* ================= FETCH APPOINTMENTS ================= */
   useEffect(() => {
     if (tab !== "appointments" && tab !== "upload") return;
@@ -223,6 +219,23 @@ export default function PatientDashboard() {
     setTab("profile");
   }
 
+  function isFutureOrTodayAppointment(appt) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // normalize today
+
+    const apptDate = new Date(appt.date);
+    apptDate.setHours(0, 0, 0, 0); // normalize appointment date
+
+    // show today + future, hide only past dates
+    return apptDate >= today;
+  }
+
+  const uploadableAppointments = useMemo(() => {
+    return appointments.filter(isFutureOrTodayAppointment);
+  }, [appointments]);
+
+
+
   /* ================= APPOINTMENT ACTIONS ================= */
 
   async function confirmCancel() {
@@ -273,6 +286,11 @@ export default function PatientDashboard() {
       showToast("Update failed", "error");
     }
   }
+
+  const visibleAppointments = useMemo(() => {
+    return appointments.filter(isFutureOrTodayAppointment);
+  }, [appointments]);
+
 
   function handleLogout() {
     logout();
@@ -427,13 +445,13 @@ export default function PatientDashboard() {
 
                 {apptLoading ? (
                   <p className="text-slate-500">Loading appointments...</p>
-                ) : appointments.length === 0 ? (
+                ) : visibleAppointments.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-6 text-center text-slate-500">
                     You have no appointments yet.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {appointments.map((a) => (
+                    {visibleAppointments.map((a) => (
                       <AppointmentCard
                         key={a._id}
                         appt={a}
@@ -452,7 +470,7 @@ export default function PatientDashboard() {
 
                 <UploadReport
                   token={token}
-                  appointments={appointments}
+                  appointments={uploadableAppointments}
                   onUploaded={() => showToast("Report uploaded successfully")}
                 />
               </div>
@@ -592,8 +610,40 @@ function Select({ label, value, options, onChange }) {
   );
 }
 
+function canJoinCall(appt) {
+  if (appt.status !== "Confirmed") return false;
+
+  const now = new Date();
+
+  // Build appointment datetime
+  const apptDate = new Date(appt.date);
+  const [hours, minutes] = appt.time.split(":");
+
+  apptDate.setHours(Number(hours), Number(minutes), 0, 0);
+
+  // Allow joining 5 minutes before
+  const joinFrom = new Date(apptDate.getTime() - 5 * 60 * 1000);
+
+  // Optional: allow till 30 mins after start
+  const endAt = new Date(apptDate.getTime() + 30 * 60 * 1000);
+
+  return now >= joinFrom && now <= endAt;
+}
+
+
+
 function AppointmentCard({ appt, onEdit, onCancel }) {
+  const navigate = useNavigate();
   const d = appt.doctorApplicationId;
+
+  const today = new Date().toDateString();
+  const apptDate = new Date(appt.date).toDateString();
+
+  const [joined, setJoined] = useState(false);
+
+  const canJoin =
+    appt.status === "Confirmed" && today === apptDate;
+
 
   const statusStyles = {
     Pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -629,6 +679,30 @@ function AppointmentCard({ appt, onEdit, onCancel }) {
 
       {/* ACTIONS */}
       <div className="flex flex-col gap-2">
+
+        {/* {canJoin && (
+        <button
+          disabled={joined}
+          onClick={() => {
+            setJoined(true);
+            navigate(`/video-call/${appt._id}`);
+          }}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+        >
+          📹 Join Call
+        </button>
+      )} */}
+
+        {canJoinCall(appt) && (
+          <button
+            onClick={() => navigate(`/video-call/${appt._id}`)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            📞 Join Call
+          </button>
+        )}
+
+
         {/* EDIT – only if NOT confirmed */}
         {appt.status !== "Confirmed" && appt.status !== "Cancelled" && (
           <button
@@ -769,13 +843,19 @@ function UploadReport({ token, onUploaded, appointments = [] }) {
           className="w-full border rounded-md px-3 py-2"
         >
           <option value="">General Report (No appointment)</option>
+
+          {appointments.length === 0 && (
+            <option disabled>No upcoming appointments</option>
+          )}
+
           {appointments.map((a) => (
             <option key={a._id} value={a._id}>
-              {new Date(a.date).toLocaleDateString()} – {a.time} – Dr. {a.doctorApplicationId?.fullName} – {a.doctorApplicationId?.specialization}
+              {new Date(a.date).toLocaleDateString()} – {a.time} – Dr.{" "}
+              {a.doctorApplicationId?.fullName} – {a.doctorApplicationId?.specialization}
             </option>
           ))}
-
         </select>
+
       </div>
 
       <div>
