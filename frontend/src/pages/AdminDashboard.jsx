@@ -2,6 +2,28 @@ import { useState, useEffect } from "react";
 import { API_BASE, useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import socket from "../socket";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Filler,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Filler
+);
+
+
 
 
 export default function AdminDashboard() {
@@ -15,6 +37,8 @@ export default function AdminDashboard() {
     appointments: 0,
   });
 
+  const [todayAppts, setTodayAppts] = useState(0);
+  const [chartData, setChartData] = useState([]);
 
   // REAL doctor requests
   const [requests, setRequests] = useState([]);
@@ -72,6 +96,7 @@ export default function AdminDashboard() {
     };
   }, [tab]);
 
+  /* ================= MARK MESSAGES AS READ ================= */
   useEffect(() => {
     if (tab !== "messages") return;
 
@@ -82,7 +107,7 @@ export default function AdminDashboard() {
   }, [tab]);
 
 
-
+  /* ================= FETCH STATS CARD DETAILS ================= */
   useEffect(() => {
     if (tab !== "dashboard") return;
 
@@ -114,7 +139,7 @@ export default function AdminDashboard() {
 
   /* ================= FETCH DOCTOR REQUESTS ================= */
   useEffect(() => {
-    if (tab !== "requests") return;
+    if (tab !== "requests" && tab !== "dashboard") return;
 
     async function fetchRequests() {
       setLoading(true);
@@ -269,6 +294,45 @@ export default function AdminDashboard() {
     setAdminMessages((list) => list.filter((m) => m._id !== id));
   }
 
+  /* ================= RECENT ACTIVITY ================= */
+  const pendingRequestsCount = requests.filter((r) => r.status === "Pending").length;
+
+  const recentActivity = [
+    ...(pendingRequestsCount > 0
+      ? [{ type: "request", text: `${pendingRequestsCount} doctor request(s) pending review` }]
+      : [{ type: "request", text: "No pending doctor requests" }]),
+
+    ...(unreadCount > 0
+      ? [{ type: "message", text: `${unreadCount} unread message(s) from users` }]
+      : [{ type: "message", text: "No unread messages" }]),
+
+    { type: "appointment", text: `Today appointments: ${todayAppts}` },
+  ].slice(0, 6);
+
+  /* ================= TODAY APPOINTMENTS ================= */
+  useEffect(() => {
+    if (tab !== "dashboard") return;
+
+    fetch(`${API_BASE}/api/admin/appointments/today`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setTodayAppts(data.todayAppointments || 0))
+      .catch(() => setTodayAppts(0));
+  }, [tab, token]);
+
+  /* ================= APPOINTMENTS CHART DATA ================= */
+  useEffect(() => {
+    if (tab !== "dashboard") return;
+
+    fetch(`${API_BASE}/api/admin/appointments/chart`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setChartData(data))
+      .catch(() => setChartData([]));
+  }, [tab, token]);
+
 
   /* ================= LOGOUT ================= */
   function handleLogout() {
@@ -320,34 +384,134 @@ export default function AdminDashboard() {
           <section className="md:col-span-9">
 
             {tab === "dashboard" && (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+              <div className="space-y-6">
 
-                {/* Doctors */}
-                <div className="rounded-2xl bg-white p-6 shadow-sm border">
-                  <p className="text-sm text-slate-500">Total Doctors</p>
-                  <h3 className="mt-2 text-3xl font-bold text-blue-600">
-                    {stats.doctors}
-                  </h3>
+                {/* Row 1: Totals */}
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                  <StatCard title="Total Doctors" value={stats.doctors} accent="text-blue-600" />
+                  <StatCard title="Total Users" value={stats.users} accent="text-emerald-600" />
+                  <StatCard title="Total Appointments" value={stats.appointments} accent="text-rose-600" />
                 </div>
 
-                {/* Users */}
-                <div className="rounded-2xl bg-white p-6 shadow-sm border">
-                  <p className="text-sm text-slate-500">Total Users</p>
-                  <h3 className="mt-2 text-3xl font-bold text-emerald-600">
-                    {stats.users}
-                  </h3>
+                {/* Row 2: Actionable */}
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                  <StatCard title="Pending Requests" value={pendingRequestsCount} accent="text-amber-600" />
+                  <StatCard title="Unread Messages" value={unreadCount} accent="text-violet-600" />
+                  <StatCard title="Today Appointments" value={todayAppts} accent="text-sky-600" />
                 </div>
 
-                {/* Appointments */}
-                <div className="rounded-2xl bg-white p-6 shadow-sm border">
-                  <p className="text-sm text-slate-500">Total Appointments</p>
-                  <h3 className="mt-2 text-3xl font-bold text-rose-600">
-                    {stats.appointments}
-                  </h3>
+                {/* Quick Actions */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-slate-900">Quick Actions</h3>
+                  <p className="mt-1 text-sm text-slate-600">Jump to the most common admin tasks</p>
+
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setTab("requests")}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Review Doctor Requests
+                    </button>
+
+                    <button
+                      onClick={() => setTab("messages")}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      View Messages
+                    </button>
+
+                    <button
+                      onClick={() => setTab("password")}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Reset Password
+                    </button>
+                  </div>
+                </div>
+
+                {/* Activity + Chart */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {/* Recent Activity */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
+                    <p className="mt-1 text-sm text-slate-600">System highlights and important updates</p>
+
+                    <div className="mt-4 space-y-3">
+                      {recentActivity.map((a, idx) => (
+                        <div key={idx} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                          <span className="text-lg">
+                            {a.type === "request" ? "🩺" : a.type === "message" ? "✉️" : "📅"}
+                          </span>
+                          <div className="text-sm text-slate-700">{a.text}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Small Chart Placeholder */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-slate-900">Appointments Overview</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Appointments booked in the last 7 days
+                    </p>
+
+                    <div className="mt-6 flex h-56 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50">
+                      <div className="mt-6 h-56">
+                        <Line
+                          data={{
+                            labels: chartData.map((d) => d.date),
+                            datasets: [
+                              {
+                                label: "Appointments",
+                                data: chartData.map((d) => d.count),
+                                borderColor: "#2563eb",
+                                backgroundColor: "rgba(37, 99, 235, 0.15)",
+                                fill: true,
+                                tension: 0.4, // smooth curve
+                                pointRadius: 4,
+                                pointBackgroundColor: "#2563eb",
+                                pointBorderWidth: 2,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: { display: false },
+                              tooltip: {
+                                backgroundColor: "#0f172a",
+                                titleColor: "#fff",
+                                bodyColor: "#e5e7eb",
+                                padding: 10,
+                                cornerRadius: 8,
+                              },
+                            },
+                            scales: {
+                              x: {
+                                grid: { display: false },
+                                ticks: { color: "#64748b" },
+                              },
+                              y: {
+                                grid: { color: "#e5e7eb" },
+                                ticks: {
+                                  color: "#64748b",
+                                  precision: 0,
+                                },
+                                beginAtZero: true,
+                              },
+                            },
+                          }}
+                        />
+                      </div>
+
+                    </div>
+                  </div>
                 </div>
 
               </div>
             )}
+
 
 
             {/* Doctor Requests */}
@@ -756,3 +920,14 @@ function SideItem({ icon, label, active, onClick }) {
   const a = active ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-blue-50 hover:text-blue-700";
   return <button onClick={onClick} className={`${base} ${a}`}>{icon} {label}</button>;
 }
+
+function StatCard({ title, value, accent = "text-slate-900" }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="text-sm text-slate-500">{title}</p>
+      <h3 className={`mt-2 text-3xl font-bold ${accent}`}>{value}</h3>
+      <p className="mt-2 text-xs text-slate-500">Updated just now</p>
+    </div>
+  );
+}
+
