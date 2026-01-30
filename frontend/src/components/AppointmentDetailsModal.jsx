@@ -79,7 +79,7 @@ export default function AppointmentDetailsModal({ appointment, token, onClose })
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
           <Info label="Name" value={patient?.name} />
-          <Info label="Email" value={patient?.email} />
+          <Info label="Gender" value={patient?.gender} />
           <Info label="Phone" value={patient?.phone || "—"} />
           <Info label="Blood Group" value={patient?.blood || "—"} />
           <Info label="Age" value={age} />

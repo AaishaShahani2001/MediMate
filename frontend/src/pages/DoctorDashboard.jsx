@@ -12,9 +12,11 @@ export default function DoctorDashboard() {
 
   const { token, logout } = useAuth();
   const navigate = useNavigate();
-
   const avatarInputRef = useRef(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+
+
+
 
   /* ================= REAL DOCTOR PROFILE (DoctorApplication) ================= */
   const [docLoading, setDocLoading] = useState(true);
@@ -33,22 +35,27 @@ export default function DoctorDashboard() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  // Filter appointments based on the selected filter
+  /* ================= FILTER APPOINTMENTS ================= */
   const filteredAppointments = useMemo(() => {
-    if (filter === "all") return appointments;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  return appointments.filter((a) => {
+    const apptDate = new Date(a.date);
+    apptDate.setHours(0, 0, 0, 0);
 
-    return appointments.filter((a) => {
-      const d = new Date(a.date);
-      d.setHours(0, 0, 0, 0);
+    // HIDE past appointments (strictly before today)
+    if (apptDate < today) return false;
 
-      if (filter === "today") return d.getTime() === today.getTime();
-      if (filter === "upcoming") return d > today;
-      return true;
-    });
-  }, [appointments, filter]);
+    // FILTER LOGIC
+    if (filter === "today") return apptDate.getTime() === today.getTime();
+    if (filter === "upcoming") return apptDate > today;
+
+    // "all" → today + upcoming only
+    return true;
+  });
+}, [appointments, filter]);
+
 
 
   /* ================= LOAD DOCTOR PROFILE ================= */
@@ -414,7 +421,7 @@ export default function DoctorDashboard() {
                     All Appointments
                   </h1>
                   <p className="text-sm text-slate-600">
-                    Your upcoming and past appointments
+                    Showing today & upcoming appointments
                   </p>
                 </div>
 
@@ -466,7 +473,7 @@ export default function DoctorDashboard() {
           </section>
         </div>
       </div>
-      
+
       {/* ================= APPOINTMENT DETAILS MODAL ================= */}
       {viewAppt && (
         <AppointmentDetailsModal
@@ -566,13 +573,41 @@ function ClockIcon() {
   );
 }
 
+function canJoinCall(appt) {
+  if (appt.status !== "Confirmed") return false;
+
+  const now = new Date();
+
+  // Extract date safely
+  const dateObj = new Date(appt.date);
+
+  // Apply time manually
+  const [hours, minutes] = appt.time.split(":");
+  dateObj.setHours(Number(hours), Number(minutes), 0, 0);
+
+  // Allow join 5 minutes before
+  const joinFrom = new Date(dateObj.getTime() - 5 * 60 * 1000);
+
+  return now >= joinFrom;
+}
+
+
+
 function AppointmentCard({ data, onStatus, onView }) {
   // Appointment schema:
   // patientId (populated User), doctorApplicationId (DoctorApplication), date, time, status
   const patient = data.patientId; // expects populate("patientId","name email phone")
   const dateStr = data.date ? new Date(data.date).toLocaleDateString() : "—";
+  const navigate = useNavigate();
+  const today = new Date().toDateString();
+  const apptDate = new Date(data.date).toDateString();
 
-  const disabledJoin = data.status === "Cancelled";
+  const [joined, setJoined] = useState(false);
+
+  // const disabledJoin =
+  //   data.status !== "Confirmed" || today !== apptDate;
+
+    const disabledJoin = !canJoinCall(data);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -594,12 +629,20 @@ function AppointmentCard({ data, onStatus, onView }) {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              disabled={disabledJoin}
+              disabled={disabledJoin || joined}
+              onClick={() => {
+                setJoined(true);
+                navigate(`/video-call/${data._id}`);
+              }}
               className={`rounded-full px-4 py-2 text-sm font-semibold shadow-sm
-                ${disabledJoin ? "cursor-not-allowed bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"}`}
+    ${disabledJoin
+                  ? "cursor-not-allowed bg-slate-200 text-slate-500"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
             >
-              Join the call
+              Join Call
             </button>
+
 
             <select
               value={data.status}
