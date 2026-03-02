@@ -28,6 +28,7 @@ ChartJS.register(
 
 export default function AdminDashboard() {
   const { token, logout } = useAuth();
+  const { fetchWithAuth } = useAuth();
   const [tab, setTab] = useState("dashboard");
   const [isTyping, setIsTyping] = useState(false);
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
 
     async function fetchStats() {
       try {
-        const res = await fetch(`${API_BASE}/api/admin/stats`, {
+        const res = await fetchWithAuth(`${API_BASE}/api/admin/stats`, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
