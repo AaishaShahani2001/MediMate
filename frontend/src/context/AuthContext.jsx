@@ -44,6 +44,24 @@ export function AuthProvider({ children }) {
     setSession(null);
   }
 
+  /* ================= FETCH WITH AUTO LOGOUT ================= */
+async function fetchWithAuth(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${session?.token}`,
+    },
+  });
+
+  if (res.status === 401) {
+    logout();
+    return null;
+  }
+
+  return res;
+}
+
   /* ================= AUTO SOCKET RECONNECT ================= */
   useEffect(() => {
     if (!session?.token) return;
@@ -65,6 +83,7 @@ export function AuthProvider({ children }) {
       token: session?.token || null,
       login,
       logout,
+      fetchWithAuth, 
       authHeader: session?.token
         ? { Authorization: `Bearer ${session.token}` }
         : {},
